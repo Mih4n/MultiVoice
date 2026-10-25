@@ -20,5 +20,3 @@ build/
 # local BDS (Endstone.Nix data dir)
 bds/
 
-# server log written by the e2e job
-Backend/server.log
