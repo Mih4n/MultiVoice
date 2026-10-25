@@ -1,3 +1,3 @@
-from endstone_multivoice.multivoice import MultiVoicePlugin
+from endstone_multivoice.plugin import MultiVoicePlugin
 
 __all__ = ["MultiVoicePlugin"]
