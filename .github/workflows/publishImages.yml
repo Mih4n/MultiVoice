@@ -1,0 +1,54 @@
+name: Publish Docker images
+
+on:
+  release:
+    types: [published]
+
+  push:
+    branches: [ "main", "development" ]
+
+jobs:
+  # Nothing is published until this passes: a failed job leaves the one below
+  # skipped, so a red build or a red test can never reach the registry.
+  tests:
+    uses: ./.github/workflows/tests.yml
+
+  push_to_registries:
+    name: Push ${{ matrix.image }} image
+    needs: tests
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+    strategy:
+      matrix:
+        include:
+          - image: backend
+            context: ./Backend
+          - image: frontend
+            context: ./Frontend
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
+        with:
+          images: ghcr.io/${{ github.repository }}/${{ matrix.image }}
+
+      - name: Build and push Docker images
+        uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          file: ${{ matrix.context }}/Dockerfile
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

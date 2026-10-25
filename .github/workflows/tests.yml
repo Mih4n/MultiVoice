@@ -1,0 +1,106 @@
+# The gate every other workflow depends on: if any job here fails, nothing downstream runs.
+name: Tests
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore Backend/MultiVoice.slnx
+
+      - name: Build
+        run: dotnet build Backend/MultiVoice.slnx --no-restore --configuration Release
+
+  frontend:
+    name: Frontend typecheck and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: Frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+  plugin:
+    name: Plugin tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Plugin
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Unit tests
+        run: python tests/test_state_diff.py
+
+  # Runs the real server and drives it like the plugin and two browsers would.
+  e2e:
+    name: End-to-end smoke test
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: Frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: Frontend
+        run: npm ci
+
+      - name: Start server
+        working-directory: Backend/MultiVoice.Server
+        run: |
+          dotnet run --configuration Release > ../server.log 2>&1 &
+          timeout 120 bash -c 'until curl -s -o /dev/null -X POST "http://localhost:5000/auth/negotiate?negotiateVersion=1"; do sleep 1; done'
+
+      - name: Smoke test
+        working-directory: Frontend
+        run: node scripts/smoke.mjs
+
+      - name: Server log
+        if: failure()
+        run: cat Backend/server.log
