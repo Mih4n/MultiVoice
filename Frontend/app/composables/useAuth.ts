@@ -5,7 +5,7 @@ export function useAuth() {
   const code = ref<number | null>(null)
   const name = ref('')
 
-  const hub = createHub('/auth')
+  const hub = createHub('/api/auth')
 
   async function resume(token: string) {
     const who = await hub.invoke<string | null>('Resume', token)

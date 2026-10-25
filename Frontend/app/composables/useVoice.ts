@@ -12,7 +12,7 @@ export function useVoice() {
   const muted = ref(false) // site button
   const gameMuted = ref(false) // /mute in game
 
-  const hub = createHub('/voice', { accessTokenFactory: () => tokenStorage.read() ?? '' })
+  const hub = createHub('/api/voice', { accessTokenFactory: () => tokenStorage.read() ?? '' })
   let ctx: AudioContext | null = null
   let impulses: ReverbImpulses | null = null
   let mic: Microphone | null = null

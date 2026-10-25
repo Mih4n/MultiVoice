@@ -34,8 +34,8 @@ services.AddVoicePipeline(p => p
 
 var app = builder.Build();
 app.UseCors();
-app.MapHub<AuthHub>("/auth");
-app.MapHub<VoiceHub>("/voice");
-app.MapHub<MinecraftHub>("/minecraft");
-if (voiceOptions.DevHub) app.MapHub<DevHub>("/dev");
+app.MapHub<AuthHub>("/api/auth");
+app.MapHub<VoiceHub>("/api/voice");
+app.MapHub<MinecraftHub>("/api/minecraft");
+if (voiceOptions.DevHub) app.MapHub<DevHub>("/api/dev");
 app.Run();

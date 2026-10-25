@@ -7,7 +7,7 @@ import { MessagePackHubProtocol } from '@microsoft/signalr-protocol-msgpack'
 const [near, base = 'http://localhost:5000', secret = 'change-me'] = process.argv.slice(2)
 if (!near) { console.error('usage: node scripts/voicebot.mjs <player> [url] [secret]'); process.exit(1) }
 
-const conn = new signalR.HubConnectionBuilder().withUrl(base + '/dev').withHubProtocol(new MessagePackHubProtocol()).build()
+const conn = new signalR.HubConnectionBuilder().withUrl(base + '/api/dev').withHubProtocol(new MessagePackHubProtocol()).build()
 await conn.start()
 const bot = await conn.invoke('SpawnBot', secret, near)
 console.log(`VoiceBot at ${bot.X.toFixed(1)} ${bot.Y.toFixed(1)} ${bot.Z.toFixed(1)} (${bot.DimensionId}), beeping. Ctrl+C to stop.`)

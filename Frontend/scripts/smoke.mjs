@@ -15,13 +15,13 @@ const hub = (path, options = {}, msgpack = true) => {
 }
 
 // wrong secret: the hub drops the connection
-const bad = hub('/minecraft', { headers: { 'X-Secret': 'nope' } }, false)
+const bad = hub('/api/minecraft', { headers: { 'X-Secret': 'nope' } }, false)
 const badClosed = new Promise((r) => bad.onclose(r))
 await bad.start()
 await badClosed
 
 // plugin speaks JSON, like signalrcore in the Endstone plugin
-const plugin = hub('/minecraft', { headers: { 'X-Secret': secret } }, false)
+const plugin = hub('/api/minecraft', { headers: { 'X-Secret': secret } }, false)
 const asks = []
 plugin.on('Ask', (name, codes) => asks.push({ name, codes }))
 await plugin.start()
@@ -32,7 +32,7 @@ const snapshot = (changed, left = []) => plugin.invoke('Players', changed, left)
 await snapshot([player('Alice', 31), player('Bob', 34, { inWater: true }), player('Carol', 500)])
 
 async function login(name, pickCorrect = true) {
-  const auth = hub('/auth')
+  const auth = hub('/api/auth')
   const token = new Promise((r) => auth.on('Confirmed', r))
   const rejected = new Promise((r) => auth.on('Rejected', () => r(null)))
   await auth.start()
@@ -47,7 +47,7 @@ async function login(name, pickCorrect = true) {
 }
 
 async function voiceOf(token) {
-  const voice = hub('/voice', { accessTokenFactory: () => token })
+  const voice = hub('/api/voice', { accessTokenFactory: () => token })
   const heard = [], self = []
   voice.on('Voice', (...args) => heard.push(args))
   voice.on('Self', (...args) => self.push(args))
@@ -65,7 +65,7 @@ assert.equal(carol.token, null, 'wrong code is rejected')
 await assert.rejects(carol.auth.invoke('RequestCode', 'Carol'), /30 секунд/)
 
 // a voice connection with a bad token gets dropped
-const intruder = hub('/voice', { accessTokenFactory: () => 'bogus' })
+const intruder = hub('/api/voice', { accessTokenFactory: () => 'bogus' })
 const intruderClosed = new Promise((r) => intruder.onclose(r))
 await intruder.start()
 await intruderClosed

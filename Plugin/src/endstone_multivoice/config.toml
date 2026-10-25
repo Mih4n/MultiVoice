@@ -1,5 +1,5 @@
 # MultiVoice server MinecraftHub URL and the shared secret (Voice:McSecret on the server)
-url = "http://localhost:5000/minecraft"
+url = "http://localhost:5000/api/minecraft"
 secret = "change-me"
 # how often player positions are sent, in ticks (20 ticks = 1 s)
 period_ticks = 2
