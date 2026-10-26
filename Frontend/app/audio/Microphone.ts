@@ -7,6 +7,7 @@ export class Microphone {
   private encoder: AudioEncoder | null = null
   private settings = { denoise: true, sensitivity: 0.5 }
   deviceId = '' // '' is the system default; set before start()
+  onLevel = (_level: number) => {}
 
   constructor(
     private readonly ctx: AudioContext,
@@ -46,10 +47,11 @@ export class Microphone {
 
     const rate = ctx.sampleRate
     let timestamp = 0
-    // the worklet posts a boolean when speaking starts or stops, and samples only while speaking
-    capture.port.onmessage = (e: MessageEvent<boolean | Float32Array<ArrayBuffer>>) => {
+    // the worklet posts a boolean when speaking starts or stops, a level number every 50 ms, and samples only while speaking
+    capture.port.onmessage = (e: MessageEvent<boolean | number | Float32Array<ArrayBuffer>>) => {
       const samples = e.data
       if (typeof samples === 'boolean') return this.onSpeaking(samples)
+      if (typeof samples === 'number') return this.onLevel(samples)
       const data = new AudioData({ format: 'f32', sampleRate: rate, numberOfFrames: samples.length, numberOfChannels: 1, timestamp, data: samples })
       encoder.encode(data)
       data.close()

@@ -1,9 +1,10 @@
-// mic samples -> RNNoise (optional) -> voice activation -> main thread, only while speaking
+// mic samples -> RNNoise (optional) -> loudness gate -> main thread, only while speaking; plus a level for the meter
 import createRNNWasmModuleSync from '@jitsi/rnnoise-wasm/dist/rnnoise-sync.js'
 
 const FRAME = 480 // RNNoise works on 10 ms frames at 48 kHz
 const HANGOVER = 30 // frames (300 ms) kept open after the last voiced one, so speech isn't chopped
 const SCALE = 32768 // RNNoise expects 16-bit sample values
+const METER_EVERY = 5 // frames (50 ms) between level reports for the sensitivity meter
 
 class Capture extends AudioWorkletProcessor {
   constructor() {
@@ -17,6 +18,8 @@ class Capture extends AudioWorkletProcessor {
     this.filled = 0
     this.hold = 0
     this.speaking = false
+    this.peak = 0
+    this.frames = 0
     this.denoise = true
     this.sensitivity = 0.5
     this.port.onmessage = (e) => { ({ denoise: this.denoise, sensitivity: this.sensitivity } = e.data) }
@@ -38,17 +41,23 @@ class Capture extends AudioWorkletProcessor {
   }
 
   gate() {
-    let frame, voiced
+    let frame
     if (this.denoise) {
       const heap = this.rnn.HEAPF32 // re-read: the view changes if wasm memory grows
       for (let i = 0; i < FRAME; i++) heap[this.input / 4 + i] = this.frame[i] * SCALE
-      const probability = this.rnn._rnnoise_process_frame(this.state, this.output, this.input)
+      this.rnn._rnnoise_process_frame(this.state, this.output, this.input)
       frame = heap.slice(this.output / 4, this.output / 4 + FRAME).map((x) => x / SCALE)
-      voiced = probability >= 1 - this.sensitivity
     } else {
       frame = this.frame.slice()
-      const rms = Math.sqrt(frame.reduce((sum, x) => sum + x * x, 0) / FRAME)
-      voiced = 20 * Math.log10(rms) >= -20 - 50 * this.sensitivity // sensitivity 0..1 -> -20..-70 dBFS
+    }
+    // loudness of what is actually sent, -100..0 dBFS -> 0..1, like Discord's meter; the threshold is 1 - sensitivity
+    const rms = Math.sqrt(frame.reduce((sum, x) => sum + x * x, 0) / FRAME)
+    const level = Math.min(1, Math.max(0, (20 * Math.log10(rms) + 100) / 100))
+    const voiced = level >= 1 - this.sensitivity
+    this.peak = Math.max(this.peak, level)
+    if (++this.frames === METER_EVERY) {
+      this.port.postMessage(this.peak)
+      this.peak = this.frames = 0
     }
     this.hold = voiced ? HANGOVER : Math.max(0, this.hold - 1)
     const speaking = this.hold > 0

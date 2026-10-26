@@ -23,6 +23,7 @@ export function useVoice() {
   const talking = computed(() => micOn.value && !deafened.value)
   const micLive = ref(false) // mic actually capturing
   const speaking = ref(false)
+  const level = ref(0) // mic level 0..1 for the sensitivity meter
   const gameMuted = ref(false) // /mute in game
   const players = ref<Record<string, PlayerVoice>>({}) // everyone else in voice, server-wide
   const settings = ref<Record<string, SpeakerSetting>>({})
@@ -106,6 +107,7 @@ export function useVoice() {
       (value) => { if (mic === m) speaking.value = value },
       (message) => { error.value = message })
     m.deviceId = deviceId.value
+    m.onLevel = (value) => { if (mic === m) level.value = value }
     m.configure(denoise.value, sensitivity.value)
     try {
       await m.start()
@@ -124,6 +126,7 @@ export function useVoice() {
     mic = null
     micLive.value = false
     speaking.value = false
+    level.value = 0
   }
 
   const settingOf = (xuid: string) => settings.value[xuid] ?? { Volume: 1, Muted: false }
@@ -144,5 +147,5 @@ export function useVoice() {
     mic?.stop(); hub.stop(); ctx?.close()
   })
 
-  return { live, suspended, error, micOn, deafened, deviceId, devices, denoise, sensitivity, speaking, gameMuted, players, settings, start, setVolume, setMuted }
+  return { live, suspended, error, micOn, deafened, deviceId, devices, denoise, sensitivity, speaking, level, gameMuted, players, settings, start, setVolume, setMuted }
 }

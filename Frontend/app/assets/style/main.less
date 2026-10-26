@@ -1,0 +1,145 @@
+@import "./colors.less";
+@import "./base.less";
+
+// from the MultiPunk site (Frontend/app/assets/style/main.less)
+:root {
+  --z-index-dropdown: 14000;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+a,
+textarea,
+div,
+input,
+label,
+button {
+  font-family: "Montserrat", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: bold;
+  font-style: normal;
+  text-decoration: none;
+
+  margin: 0;
+
+  color: inherit;
+
+  &.white {
+    color: oklch(100% 0 0);
+  }
+
+  &.bluish {
+    color: var(--scolor-text-muted);
+  }
+
+  &.darker {
+    color: var(--scolor-text-dark);
+  }
+
+  &.crystal {
+    color: var(--scolor-crystal);
+  }
+
+  &.error {
+    color: var(--scolor-error);
+  }
+
+  &.on-surface {
+    color: var(--scolor-on-surface);
+  }
+
+  &.inverse {
+    color: var(--scolor-text-inverse);
+  }
+
+  &.black {
+    color: oklch(0% 0 0);
+  }
+
+  &.underline {
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
+  &.ellipsis {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+span {
+  color: inherit;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: clip;
+}
+
+body {
+  color: var(--scolor-text);
+  background-color: var(--scolor-background);
+}
+
+// MultiVoice
+
+html {
+  // content stays 1100px wide; the footer spans the page by pulling this padding back
+  --page-padding: max(16px, calc((100vw - 1100px) / 2));
+}
+
+#__nuxt {
+  min-height: 100vh;
+  padding: 0 var(--page-padding);
+
+  display: flex;
+  flex-direction: column;
+}
+
+h2 {
+  font-size: 1.125rem;
+}
+
+.card {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+
+  color: oklch(100% 0 0);
+  background: var(--mcolor-panel);
+  border-radius: 10px;
+}
+
+.muted {
+  color: oklch(100% 0 0 / 0.6);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+// the site's Button as a square icon button
+.button.icon {
+  width: 40px;
+  flex: none;
+}
+
+// base.less unsets every input; sliders have to come back
+input[type="range"] {
+  all: revert;
+  width: 100%;
+  margin: 0;
+  accent-color: var(--scolor-accent);
+}

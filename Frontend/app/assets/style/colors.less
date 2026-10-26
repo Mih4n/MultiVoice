@@ -1,0 +1,188 @@
+// ============================================================
+// Color system
+// ============================================================
+// All design tokens use OKLCH relative-color syntax so the
+// source hex is visible next to each token:
+//   oklch(from #rrggbb l c h)
+//
+// Prefixes:
+//   --scolor-*  site colors (public site + admin, themeable)
+//   --mcolor-*  modal colors (fixed, must NOT change with theme)
+//
+// Themes:
+//   :root               default light theme
+//   [data-theme="dark"] dark theme
+//   .light-zone         forces light theme for a subtree
+//                       (used by modals and other fixed areas)
+// ============================================================
+
+.light-theme() {
+  // Site colors (themeable)
+  --scolor-text: oklch(from #3530c8 l c h);
+  --scolor-text-dark: oklch(from #0c0736 l c h);
+  --scolor-background: oklch(from #ffffff l c h);
+  --scolor-text-muted: oklch(from #5798fa l c h);
+
+  --scolor-accent: oklch(from #76ffaa l c h);
+  --scolor-primary: oklch(from #3530c8 l c h);
+  --scolor-accent-hover: oklch(from #67df95 l c h);
+
+  --scolor-cyan: oklch(from #65d6ff l c h);
+  --scolor-error: oklch(from #cc241d l c h);
+  --scolor-crystal: oklch(from #61efff l c h);
+
+  // Surface color used for public-site cards, avatar/shard
+  // backgrounds and other "primary colored" chrome that flips
+  // between the primary purple (light) and mint (dark).
+  --scolor-surface: oklch(from #3530c8 l c h);
+  --scolor-on-surface: oklch(from #ffffff l c h);
+
+  --scolor-shards-bg: var(--scolor-gradient);
+  --scolor-text-inverse: oklch(from #ffffff l c h);
+
+  --scolor-gradient: linear-gradient(
+    100.27deg,
+    oklch(from #200e71 l c h) 1.25%,
+    oklch(from #211ca9 l c h) 98.42%
+  );
+
+  --scolor-scrollbar: oklch(from #888888 l c h);
+  --scolor-border-dashed: oklch(from #cccccc l c h);
+
+  // Spacer / divider line end color
+  --scolor-spacer-end: oklch(from #3530c8 l c h);
+
+  // Footer
+  --scolor-footer-bg: oklch(from #3530c8 l c h);
+  --scolor-footer-gradient-end: oklch(from #3530c8 l c h);
+
+  // Carousel arrow chips
+  --scolor-arrow-fill: oklch(from #ffffff l c h);
+  --scolor-arrow-border: oklch(from #3530c8 l c h);
+
+  // Admin page level: the background and whatever sits directly on it (titles, subtitles,
+  // empty states). Blocks on the page override these with .modal-palette() below.
+  --scolor-admin-background: oklch(from #f1f2fb l c h);
+  --scolor-admin-surface: oklch(from #ffffff l c h);
+  --scolor-admin-on-surface: oklch(from #0c0736 l c h);
+
+  // Accent text (subtitles, lane titles) and the nav's active pill are separate roles: one has
+  // to read *as* text on the card, the other is a background with text on top of it.
+  --scolor-admin-accent: oklch(from #3530c8 l c h);
+  --scolor-admin-active: oklch(from #3530c8 l c h);
+  --scolor-admin-text-active: oklch(from #ffffff l c h);
+
+  --scolor-admin-border: oklch(from #0c0736 l c h / 0.12);
+  --scolor-admin-field: oklch(from #0c0736 l c h / 0.06);
+
+  // Brand auth buttons
+  --scolor-discord-bg: oklch(from #130f4e l c h);
+  --scolor-discord-bg-hover: oklch(from #0c093a l c h);
+
+  --scolor-telegram-bg: oklch(from #072636 l c h);
+  --scolor-telegram-bg-hover: oklch(from #041e2b l c h);
+
+  --scolor-xbox-bg: oklch(from #032016 l c h);
+  --scolor-xbox-bg-hover: oklch(from #01140d l c h);
+
+  // Transparent overlays (site)
+  --scolor-overlay-white-10: oklch(from #ffffff l c h / 0.1);
+  --scolor-overlay-white-20: oklch(from #ffffff l c h / 0.2);
+  --scolor-overlay-white-30: oklch(from #ffffff l c h / 0.3);
+  --scolor-overlay-black-20: oklch(from #000000 l c h / 0.2);
+}
+
+:root {
+  .light-theme();
+
+  // --------------------------------------------------------
+  // Modal colors (fixed, independent from site theme)
+  // --------------------------------------------------------
+  --mcolor-text: oklch(from #ffffff l c h);
+  --mcolor-panel: oklch(from #3530c8 l c h);
+  --mcolor-error: oklch(from #ff4444 l c h);
+  --mcolor-accent: oklch(from #76ffaa l c h);
+  --mcolor-primary: oklch(from #211ca9 l c h);
+  --mcolor-crystal: oklch(from #61efff l c h);
+  --mcolor-overlay: oklch(from #0e0848 l c h / 0.5);
+  --mcolor-subscription-bezel: oklch(from #7974fb l c h);
+
+  --mcolor-gradient: linear-gradient(
+    100.27deg,
+    oklch(from #200e71 l c h) 1.25%,
+    oklch(from #211ca9 l c h) 98.42%
+  );
+
+  // Transparent overlays (modal)
+  --mcolor-overlay-white-10: oklch(from #ffffff l c h / 0.1);
+
+  // --------------------------------------------------------
+  // Deprecated aliases (keep for backward compatibility)
+  // --------------------------------------------------------
+  --background: var(--scolor-background);
+  --crystal-color: var(--scolor-crystal);
+  --main-gradient: var(--scolor-gradient);
+}
+
+// ============================================================
+// Dark theme
+// ============================================================
+[data-theme="dark"] {
+  --scolor-background: oklch(from #150c61 l c h);
+  --scolor-text: oklch(from #deffea l c h);
+  --scolor-text-muted: oklch(from #4e3ede l c h);
+
+  --scolor-surface: oklch(from #deffea l c h);
+  --scolor-on-surface: oklch(from #150c61 l c h);
+  --scolor-shards-bg: var(--scolor-surface);
+  --scolor-text-inverse: oklch(from #deffea l c h);
+  --scolor-spacer-end: oklch(from #deffea l c h);
+
+  --scolor-footer-bg: oklch(from #23178f l c h);
+  --scolor-footer-gradient-end: oklch(from #23178f l c h);
+
+  --scolor-arrow-fill: oklch(from #deffea l c h);
+  --scolor-arrow-border: oklch(from #150c61 l c h);
+
+  --scolor-scrollbar: oklch(from #4e3ede l c h);
+
+  // The panel darkens with the site rather than inverting: the card is a step up from the page,
+  // not a bright slab on top of it.
+  --scolor-admin-background: oklch(from #100a45 l c h);
+  --scolor-admin-surface: oklch(from #1d1470 l c h);
+  --scolor-admin-on-surface: oklch(from #deffea l c h);
+
+  --scolor-admin-accent: oklch(from #76ffaa l c h);
+  --scolor-admin-active: oklch(from #76ffaa l c h);
+  --scolor-admin-text-active: oklch(from #0c0736 l c h);
+
+  --scolor-admin-border: oklch(from #ffffff l c h / 0.12);
+  --scolor-admin-field: oklch(from #ffffff l c h / 0.08);
+}
+
+// ============================================================
+// Light zone — forces the light palette on a subtree.
+// Used for modals and any other island that must keep the
+// original light appearance regardless of the global theme.
+// ============================================================
+.light-zone {
+  .light-theme();
+  color: var(--scolor-text);
+}
+
+// ============================================================
+// Modal palette — the --scolor-admin-* roles restated in the
+// fixed modal colours. Admin blocks (cards, the side menu, media
+// tiles) carry it so the panel reads exactly like its dialogs,
+// in both themes; the page background around them still follows
+// the theme. @surface is the block's own fill.
+// ============================================================
+.modal-palette(@surface) {
+  --scolor-admin-surface: @surface;
+  --scolor-admin-on-surface: var(--mcolor-text);
+  --scolor-admin-accent: var(--mcolor-accent);
+  --scolor-admin-active: var(--mcolor-accent);
+  --scolor-admin-text-active: oklch(0% 0 0);
+  --scolor-admin-border: var(--mcolor-overlay-white-10);
+  --scolor-admin-field: var(--mcolor-overlay-white-10);
+}
