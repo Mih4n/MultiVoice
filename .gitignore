@@ -4,6 +4,9 @@ obj/
 *.user
 .vs/
 
+# MultiVoice.Server SQLite settings (ConnectionStrings:Settings)
+Backend/MultiVoice.Server/data/
+
 # Python
 __pycache__/
 *.py[cod]

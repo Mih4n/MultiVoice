@@ -1,8 +1,10 @@
+using Microsoft.EntityFrameworkCore;
 using MultiVoice.Server.Auth;
 using MultiVoice.Server.Dev;
 using MultiVoice.Server.Minecraft;
 using MultiVoice.Server.Options;
 using MultiVoice.Server.Players;
+using MultiVoice.Server.Settings;
 using MultiVoice.Server.Voice;
 using MultiVoice.Server.Voice.Effects;
 using MultiVoice.Server.Voice.Pipeline;
@@ -24,6 +26,9 @@ services.AddSingleton<MinecraftLink>();
 services.AddSingleton<LoginService>();
 services.AddSingleton<VoiceSessions>();
 services.AddSingleton<VoiceRouter>();
+services.AddSingleton<VoiceStates>();
+services.AddDbContextFactory<SettingsDb>(o => o.UseSqlite(builder.Configuration.GetConnectionString("Settings")));
+services.AddSingleton<SpeakerSettings>();
 
 services.AddVoicePipeline(p => p
     .Use(new MutedSpeaker())
@@ -33,6 +38,7 @@ services.AddVoicePipeline(p => p
     .Use(new DeepCaveEcho(belowY: 0, delay: 0.3f, feedback: 0.35f, wet: 0.3f)));
 
 var app = builder.Build();
+app.Services.GetRequiredService<SpeakerSettings>().Load();
 app.UseCors();
 app.MapHub<AuthHub>("/api/auth");
 app.MapHub<VoiceHub>("/api/voice");

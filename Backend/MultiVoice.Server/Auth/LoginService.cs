@@ -1,17 +1,19 @@
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
+using System.Text;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using MultiVoice.Server.Minecraft;
 using MultiVoice.Server.Players;
+using MultiVoice.Server.Settings;
 
 namespace MultiVoice.Server.Auth;
 
-public sealed class LoginService(PlayerRegistry players, MinecraftLink minecraft, IHubContext<AuthHub> auth)
+public sealed class LoginService(PlayerRegistry players, MinecraftLink minecraft, IHubContext<AuthHub> auth, IDbContextFactory<SettingsDb> dbs)
 {
     static readonly TimeSpan RequestCooldown = TimeSpan.FromSeconds(30);
 
     readonly ConcurrentDictionary<string, PendingLogin> pending = new();
-    readonly ConcurrentDictionary<string, LoginToken> tokens = new();
 
     public async Task<int> RequestCode(string name, string connectionId)
     {
@@ -38,7 +40,11 @@ public sealed class LoginService(PlayerRegistry players, MinecraftLink minecraft
         {
             pending.TryRemove(xuid, out _);
             var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
-            tokens[token] = new LoginToken(xuid, player.Name);
+            await using (var db = await dbs.CreateDbContextAsync())
+            {
+                db.LoginTokens.Add(new LoginToken(Hash(token), xuid, player.Name));
+                await db.SaveChangesAsync();
+            }
             await auth.Clients.Client(login.ConnectionId).SendAsync("Confirmed", token);
         }
         else
@@ -48,5 +54,12 @@ public sealed class LoginService(PlayerRegistry players, MinecraftLink minecraft
         }
     }
 
-    public LoginToken? Resolve(string? token) => token is not null ? tokens.GetValueOrDefault(token) : null;
+    public LoginToken? Resolve(string? token)
+    {
+        if (token is null) return null;
+        using var db = dbs.CreateDbContext();
+        return db.LoginTokens.Find(Hash(token));
+    }
+
+    static string Hash(string token) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
 }

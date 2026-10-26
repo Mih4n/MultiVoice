@@ -14,13 +14,16 @@ public sealed class VoiceSessions
         connections[xuid] = connectionId;
     }
 
-    public void Unbind(string connectionId)
+    public string? Unbind(string connectionId)
     {
-        if (xuids.TryRemove(connectionId, out var xuid))
-            connections.TryRemove(new KeyValuePair<string, string>(xuid, connectionId));
+        if (!xuids.TryRemove(connectionId, out var xuid)) return null;
+        connections.TryRemove(new KeyValuePair<string, string>(xuid, connectionId));
+        return xuid;
     }
 
     public string? XuidOf(string connectionId) => xuids.GetValueOrDefault(connectionId);
+
+    public ICollection<string> Xuids => connections.Keys;
 
     public string? ConnectionOf(string xuid) => connections.GetValueOrDefault(xuid);
 }

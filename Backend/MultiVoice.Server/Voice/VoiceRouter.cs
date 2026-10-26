@@ -1,10 +1,11 @@
 using Microsoft.AspNetCore.SignalR;
 using MultiVoice.Server.Players;
+using MultiVoice.Server.Settings;
 using MultiVoice.Server.Voice.Pipeline;
 
 namespace MultiVoice.Server.Voice;
 
-public sealed class VoiceRouter(PlayerRegistry players, VoiceSessions sessions, VoicePipeline pipeline, IHubContext<VoiceHub> hub)
+public sealed class VoiceRouter(PlayerRegistry players, VoiceSessions sessions, VoicePipeline pipeline, SpeakerSettings settings, IHubContext<VoiceHub> hub)
 {
     public Task Route(string speakerXuid, byte[] frame)
     {
@@ -14,7 +15,9 @@ public sealed class VoiceRouter(PlayerRegistry players, VoiceSessions sessions, 
         foreach (var to in players.World.Near(from))
         {
             if (to.Xuid == from.Xuid || sessions.ConnectionOf(to.Xuid) is not { } conn) continue;
-            if (pipeline.Run(from, to) is not { } mix) continue;
+            var setting = settings.Get(to.Xuid, from.Xuid);
+            if (setting?.Muted == true || pipeline.Run(from, to) is not { } mix) continue;
+            if (setting is not null) mix.Volume *= setting.Volume;
             sends.Add(hub.Clients.Client(conn).SendAsync("Voice", from.Name, frame, from.X, from.Y, from.Z, mix));
         }
         return Task.WhenAll(sends);

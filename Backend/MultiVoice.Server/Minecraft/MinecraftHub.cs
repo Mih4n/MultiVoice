@@ -5,7 +5,7 @@ using MultiVoice.Server.Voice;
 
 namespace MultiVoice.Server.Minecraft;
 
-public class MinecraftHub(PluginSecret secret, MinecraftLink link, PlayerRegistry players, VoiceRouter voice, LoginService login) : Hub
+public class MinecraftHub(PluginSecret secret, MinecraftLink link, PlayerRegistry players, VoiceRouter voice, VoiceStates states, LoginService login) : Hub
 {
     public override Task OnConnectedAsync()
     {
@@ -16,22 +16,27 @@ public class MinecraftHub(PluginSecret secret, MinecraftLink link, PlayerRegistr
         }
         players.Clear();
         link.Attach(Context.ConnectionId);
-        return Task.CompletedTask;
+        return states.Refresh(states.Known());
     }
 
-    public Task Players(PlayerPosition[] changed, string[] left)
+    public async Task Players(PlayerPosition[] changed, string[] left)
     {
-        if (!link.Is(Context.ConnectionId)) return Task.CompletedTask;
+        if (!link.Is(Context.ConnectionId)) return;
         players.Update(changed, left);
-        return voice.PushListeners(changed);
+        await voice.PushListeners(changed);
+        await states.Refresh(changed.Select(p => p.Xuid).Concat(left));
     }
 
     public Task Confirm(string xuid, int code) =>
         link.Is(Context.ConnectionId) ? login.Confirm(xuid, code) : Task.CompletedTask;
 
-    public override Task OnDisconnectedAsync(Exception? exception)
+    public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        if (link.Detach(Context.ConnectionId)) players.Clear();
-        return base.OnDisconnectedAsync(exception);
+        if (link.Detach(Context.ConnectionId))
+        {
+            players.Clear();
+            await states.Refresh(states.Known());
+        }
+        await base.OnDisconnectedAsync(exception);
     }
 }

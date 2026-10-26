@@ -1,3 +1,3 @@
 namespace MultiVoice.Server.Auth;
 
-public record LoginToken(string Xuid, string Name);
+public record LoginToken(string Hash, string Xuid, string Name);

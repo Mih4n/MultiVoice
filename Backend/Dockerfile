@@ -14,4 +14,8 @@ COPY --from=build-env /App/out .
 ENV Urls=http://+:5000
 EXPOSE 5000/tcp
 
+# per-player volume settings (SQLite, ConnectionStrings:Settings); mount a volume here to keep them across updates
+RUN mkdir data && chown $APP_UID data
+VOLUME /App/data
+
 ENTRYPOINT ["dotnet", "MultiVoice.Server.dll"]

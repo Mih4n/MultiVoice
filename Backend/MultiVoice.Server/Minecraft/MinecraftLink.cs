@@ -18,4 +18,7 @@ public sealed class MinecraftLink(IHubContext<MinecraftHub> hub)
         await hub.Clients.Client(id).SendAsync("Ask", name, codes);
         return true;
     }
+
+    public Task VoiceStates(Dictionary<string, string> states) =>
+        connectionId is { } id ? hub.Clients.Client(id).SendAsync("VoiceStates", states) : Task.CompletedTask;
 }
