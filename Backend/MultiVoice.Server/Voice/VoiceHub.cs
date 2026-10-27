@@ -18,7 +18,7 @@ public class VoiceHub(LoginService login, VoiceSessions sessions, VoiceRouter ro
             Context.Abort();
             return;
         }
-        sessions.Bind(Context.ConnectionId, user.Xuid);
+        sessions.Bind(Context.ConnectionId, user.Xuid, user.Name);
         await Clients.Caller.SendAsync("Settings", settings.Of(user.Xuid));
         await Clients.Caller.SendAsync("Players", states.Snapshot(user.Xuid));
         await rooms.Push(user.Xuid);

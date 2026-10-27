@@ -30,7 +30,7 @@ public sealed class RoomActions(Rooms rooms, PlayerRegistry players, VoiceSessio
     {
         if (sessions.ConnectionOf(xuid) is not { } conn) return Task.CompletedTask;
         var code = rooms.RoomOf(xuid);
-        string[] names = code is null ? [] : [.. rooms.Members(code).Select(x => players.Get(x)?.Name ?? x).Order()];
+        string[] names = code is null ? [] : [.. rooms.Members(code).Select(x => players.Get(x)?.Name ?? sessions.NameOf(x) ?? x).Order()];
         return hub.Clients.Client(conn).SendAsync("Room", code, names);
     }
 
