@@ -31,6 +31,7 @@ pip install -e Plugin
 ```sh
 cd Frontend && npm run typecheck
 cd Frontend && node scripts/jitter-check.mjs
+cd Frontend && node scripts/pitch-check.mjs
 cd Plugin && python -m pytest -q tests
 # end-to-end против запущенного backend (лучше на чистой БД)
 cd Frontend && node scripts/smoke.mjs http://localhost:5000

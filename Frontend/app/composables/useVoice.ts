@@ -2,7 +2,7 @@ import { HubConnectionState } from '@microsoft/signalr'
 import { Microphone } from '~/audio/Microphone'
 import { ReverbImpulses } from '~/audio/ReverbImpulses'
 import { setListenerPose } from '~/audio/setListenerPose'
-import { loadPitch, SpeakerChain } from '~/audio/SpeakerChain'
+import { createLimiter, loadPitch, SpeakerChain } from '~/audio/SpeakerChain'
 import type { VoiceMix } from '~/audio/VoiceMix'
 
 // mirror PlayerVoice and SpeakerSetting on the server
@@ -35,6 +35,7 @@ export function useVoice() {
   const hub = createHub('/api/voice', { accessTokenFactory: () => tokenStorage.read() ?? '' })
   let ctx: AudioContext | null = null
   let impulses: ReverbImpulses | null = null
+  let limiter: AudioNode | null = null
   let mic: Microphone | null = null
   const speakers = new Map<string, SpeakerChain>()
 
@@ -46,9 +47,9 @@ export function useVoice() {
   })
 
   hub.on('Voice', (speaker: string, frame: Uint8Array, x: number, y: number, z: number, mix: VoiceMix) => {
-    if (!ctx || !impulses || deafened.value) return
+    if (!ctx || !impulses || !limiter || deafened.value) return
     let chain = speakers.get(speaker)
-    if (!chain) speakers.set(speaker, chain = new SpeakerChain(ctx, impulses, speaker))
+    if (!chain) speakers.set(speaker, chain = new SpeakerChain(ctx, impulses, limiter, speaker))
     chain.apply(x, y, z, mix)
     chain.decode(frame)
   })
@@ -81,6 +82,7 @@ export function useVoice() {
     if (ctx) return ctx
     const c = ctx = new AudioContext({ sampleRate: 48000 }) // RNNoise and Opus both want 48 kHz
     impulses = new ReverbImpulses(c)
+    limiter = createLimiter(c).connect(c.destination)
     c.onstatechange = () => { suspended.value = c.state !== 'running' }
     suspended.value = c.state !== 'running'
     return c

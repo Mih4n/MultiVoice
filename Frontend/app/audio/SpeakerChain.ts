@@ -32,7 +32,7 @@ export class SpeakerChain {
   private timestamp = 0
   private readonly jitter = new JitterBuffer()
 
-  constructor(private readonly ctx: AudioContext, private readonly impulses: ReverbImpulses, name: string) {
+  constructor(private readonly ctx: AudioContext, private readonly impulses: ReverbImpulses, out: AudioNode, name: string) {
     // the server sends the distance volume, so the panner only does direction
     this.panner = new PannerNode(ctx, { panningModel: 'HRTF', rolloffFactor: 0 })
     this.pitch = new AudioWorkletNode(ctx, 'pitch') // module loaded by loadPitch() before any chain exists
@@ -48,9 +48,9 @@ export class SpeakerChain {
     this.echoWet = new GainNode(ctx, { gain: 0 })
 
     this.panner.connect(this.pitch).connect(this.highpass).connect(this.lowpass)
-      .connect(this.distortion).connect(this.compressor).connect(this.volume).connect(ctx.destination)
-    this.volume.connect(this.reverbWet).connect(this.reverb).connect(ctx.destination)
-    this.volume.connect(this.echoWet).connect(this.echo).connect(ctx.destination)
+      .connect(this.distortion).connect(this.compressor).connect(this.volume).connect(out)
+    this.volume.connect(this.reverbWet).connect(this.reverb).connect(out)
+    this.volume.connect(this.echoWet).connect(this.echo).connect(out)
     this.echo.connect(this.echoFeedback).connect(this.echo)
 
     this.decoder = new AudioDecoder({
@@ -117,5 +117,11 @@ function overdrive(k: number) {
   }
   return curve
 }
+
+// every speaker mixes into this: item and listener volume multiply up to well above 1,
+// and the destination hard-clips anything past ±1, which crackles. A limiter keeps it loud without clipping
+export const createLimiter = (ctx: AudioContext) => new DynamicsCompressorNode(ctx, {
+  threshold: -3, knee: 0, ratio: 20, attack: 0.002, release: 0.2,
+})
 
 export const loadPitch = (ctx: AudioContext) => ctx.audioWorklet.addModule(pitchUrl)

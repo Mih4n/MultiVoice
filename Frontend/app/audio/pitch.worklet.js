@@ -9,36 +9,36 @@ class Pitch extends AudioWorkletProcessor {
 
   constructor() {
     super()
-    this.ring = new Float32Array(SIZE)
+    this.rings = [] // one per channel: the panner in front of this node is stereo
     this.write = 0
     this.phase = 0
   }
 
   process(inputs, outputs, parameters) {
-    const input = inputs[0][0]
-    const output = outputs[0][0]
-    if (!output) return true
+    const input = inputs[0]
+    const output = outputs[0]
     const ratio = 2 ** (parameters.semitones[0] / 12)
-    for (let i = 0; i < output.length; i++) {
-      this.ring[this.write] = input ? input[i] : 0
-      if (ratio === 1) {
-        output[i] = this.ring[this.write]
-      } else {
-        this.phase = (this.phase + (1 - ratio) / WINDOW + 1) % 1
-        const other = (this.phase + 0.5) % 1
-        // sin² + cos² = 1 keeps the loudness flat across the crossfade
-        output[i] = this.tap(this.phase) * Math.sin(Math.PI * this.phase) + this.tap(other) * Math.sin(Math.PI * other)
+    while (this.rings.length < output.length) this.rings.push(new Float32Array(SIZE))
+    for (let i = 0; i < (output[0]?.length ?? 0); i++) {
+      if (ratio !== 1) this.phase = (this.phase + (1 - ratio) / WINDOW + 1) % 1
+      const other = (this.phase + 0.5) % 1
+      // sin² + cos² = 1 keeps the loudness flat across the crossfade
+      const a = Math.sin(Math.PI * this.phase), b = Math.sin(Math.PI * other)
+      for (let c = 0; c < output.length; c++) {
+        const ring = this.rings[c]
+        ring[this.write] = input[c] ? input[c][i] : 0
+        output[c][i] = ratio === 1 ? ring[this.write] : this.tap(ring, this.phase) * a + this.tap(ring, other) * b
       }
       this.write = (this.write + 1) & (SIZE - 1)
     }
     return true
   }
 
-  tap(phase) {
+  tap(ring, phase) {
     const pos = this.write - phase * WINDOW + SIZE
     const i = Math.floor(pos)
     const frac = pos - i
-    return this.ring[i & (SIZE - 1)] * (1 - frac) + this.ring[(i + 1) & (SIZE - 1)] * frac
+    return ring[i & (SIZE - 1)] * (1 - frac) + ring[(i + 1) & (SIZE - 1)] * frac
   }
 }
 

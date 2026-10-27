@@ -50,6 +50,9 @@ jobs:
       - name: Jitter buffer check
         run: node scripts/jitter-check.mjs
 
+      - name: Pitch worklet check
+        run: node scripts/pitch-check.mjs
+
       - name: Build
         run: npm run build
 
