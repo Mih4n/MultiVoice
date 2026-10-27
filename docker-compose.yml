@@ -1,0 +1,43 @@
+# Example deployment. Every appsettings.json key can be set from env: nesting is "__",
+# array items are numbered from 0. Env overrides appsettings.json key by key, arrays by index:
+# Voice__Items__0__* replaces the goat horn example from appsettings.json, its presets stay available.
+services:
+  backend:
+    image: ghcr.io/mih4n/multivoice/backend:main
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - multivoice-data:/App/data
+    environment:
+      Voice__McSecret: change-me # same as `secret` in the plugin's config.toml
+      Voice__DevHub: "false"
+      Voice__Origins__0: https://voice.example.com
+      Voice__DefaultRange: "32"
+
+      # effect presets: Voice__Effects__<preset>__<key>
+      Voice__Effects__megaphone__Highpass: "500"
+      Voice__Effects__megaphone__Lowpass: "4000"
+      Voice__Effects__megaphone__Distortion: "0.3"
+      Voice__Effects__megaphone__Compressor: "0.8"
+      Voice__Effects__goblin__Pitch: "5"
+
+      # items: Voice__Items__<n>__Id / Range / Volume / Effects__<m>
+      Voice__Items__0__Id: minecraft:goat_horn
+      Voice__Items__0__Range: "96"
+      Voice__Items__0__Volume: "1.5"
+      Voice__Items__0__Effects__0: megaphone
+      Voice__Items__1__Id: multipunk:goblin_mask
+      Voice__Items__1__Range: "32"
+      Voice__Items__1__Effects__0: goblin
+
+  frontend:
+    image: ghcr.io/mih4n/multivoice/frontend:main
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NUXT_PUBLIC_SERVER_URL: https://voice-api.example.com # the backend as the browser sees it
+
+volumes:
+  multivoice-data:

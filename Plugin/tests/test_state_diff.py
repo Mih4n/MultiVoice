@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src" / "endstone_multivoice"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src" / "endstone_multivoice" / "sync"))
 from state_diff import state_diff  # noqa: E402
 
 a = {"xuid": "1", "x": 0}

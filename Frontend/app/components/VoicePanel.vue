@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { mdiHeadphones, mdiHeadphonesOff, mdiMicrophone, mdiMicrophoneOff } from '@mdi/js'
 
-const props = defineProps<{ suspended: boolean, speaking: boolean, level: number, gameMuted: boolean, devices: MediaDeviceInfo[] }>()
+const props = defineProps<{ suspended: boolean, speaking: boolean, level: number, gameMuted: boolean, bannedUntil: number | null, devices: MediaDeviceInfo[] }>()
 const micOn = defineModel<boolean>('micOn', { required: true })
 const deafened = defineModel<boolean>('deafened', { required: true })
 const deviceId = defineModel<string>('deviceId', { required: true })
@@ -14,6 +14,8 @@ const talking = computed(() => micOn.value && !deafened.value)
 const status = computed(() => {
   if (deafened.value) return 'Вы никого не слышите, и вас тоже не слышно'
   if (!micOn.value) return 'Микрофон выключен'
+  if (props.bannedUntil === 0) return 'Администратор запретил вам говорить'
+  if (props.bannedUntil) return `Администратор запретил вам говорить до ${new Date(props.bannedUntil).toLocaleString('ru')}`
   if (props.gameMuted) return 'Микрофон выключен командой /mute в игре'
   return props.speaking ? 'Вас слышно' : 'Тишина'
 })

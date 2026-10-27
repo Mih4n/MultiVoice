@@ -14,6 +14,8 @@ var services = builder.Services;
 var voiceSection = builder.Configuration.GetSection(VoiceOptions.Section);
 var voiceOptions = voiceSection.Get<VoiceOptions>() ?? new VoiceOptions();
 services.Configure<VoiceOptions>(voiceSection);
+var voiceItems = new VoiceItems(Microsoft.Extensions.Options.Options.Create(voiceOptions));
+services.AddSingleton(voiceItems);
 
 services.AddSignalR().AddMessagePackProtocol();
 services.AddCors(o => o.AddDefaultPolicy(p => p
@@ -27,18 +29,23 @@ services.AddSingleton<LoginService>();
 services.AddSingleton<VoiceSessions>();
 services.AddSingleton<VoiceRouter>();
 services.AddSingleton<VoiceStates>();
+services.AddSingleton<Rooms>();
+services.AddSingleton<RoomActions>();
+services.AddSingleton<Moderation>();
+services.AddSingleton<VoiceBans>();
 services.AddDbContextFactory<SettingsDb>(o => o.UseSqlite(builder.Configuration.GetConnectionString("Settings")));
 services.AddSingleton<SpeakerSettings>();
 
 services.AddVoicePipeline(p => p
-    .Use(new MutedSpeaker())
-    .Use(new DistanceFade(from: 4, to: voiceOptions.ChunkSize))
+    .Use(new DistanceFade(fadeStart: 0.125, voiceItems))
+    .Use(new ItemEffects(voiceItems))
     .Use(new UnderwaterMuffle(cutoff: 600))
     .Use(new CaveReverb(wet: 0.5f, decay: 2.5f))
     .Use(new DeepCaveEcho(belowY: 0, delay: 0.3f, feedback: 0.35f, wet: 0.3f)));
 
 var app = builder.Build();
 app.Services.GetRequiredService<SpeakerSettings>().Load();
+app.Services.GetRequiredService<VoiceBans>().Load();
 app.UseCors();
 app.MapHub<AuthHub>("/api/auth");
 app.MapHub<VoiceHub>("/api/voice");

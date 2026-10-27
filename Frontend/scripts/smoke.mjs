@@ -22,14 +22,15 @@ await badClosed
 
 // plugin speaks JSON, like signalrcore in the Endstone plugin
 const plugin = hub('/api/minecraft', { headers: { 'X-Secret': secret } }, false)
-const asks = [], voiceStates = {}
+const asks = [], voiceStates = {}, told = []
 plugin.on('Ask', (name, codes) => asks.push({ name, codes }))
+plugin.on('Tell', (xuid, message) => told.push([xuid, message]))
 plugin.on('VoiceStates', (changes) => Object.assign(voiceStates, changes))
 await plugin.start()
 // plugin sends only changed players and the xuids that left
 const snapshot = (changed, left = []) => plugin.invoke('Players', changed, left)
 
-// Alice and Bob are 3 blocks apart across a chunk border (x=31 / x=34 with ChunkSize 32), Carol is far away
+// Alice and Bob are 3 blocks apart across a chunk border (x=31 / x=34), Carol is far away
 await snapshot([player('Alice', 31), player('Bob', 34, { inWater: true }), player('Carol', 500)])
 
 async function login(name, pickCorrect = true) {
@@ -49,7 +50,8 @@ async function login(name, pickCorrect = true) {
 
 async function voiceOf(token) {
   const voice = hub('/api/voice', { accessTokenFactory: () => token })
-  const heard = [], self = [], players = {}, settings = {}
+  const heard = [], self = [], players = {}, settings = {}, room = {}
+  voice.on('Room', (code, members) => Object.assign(room, { code, members }))
   voice.on('Voice', (...args) => heard.push(args))
   voice.on('Self', (...args) => self.push(args))
   voice.on('Settings', (s) => Object.assign(settings, s))
@@ -57,7 +59,7 @@ async function voiceOf(token) {
   voice.on('PlayerState', (p) => { players[p.Xuid] = p.State })
   await voice.start()
   await wait(100)
-  return { voice, heard, self, players, settings }
+  return { voice, heard, self, players, settings, room }
 }
 
 await assert.rejects(login('Nobody'), /не в игре/)
@@ -146,6 +148,65 @@ await assert.rejects(alice.auth.invoke('RequestCode', 'Carol'), /не в игр�
 await snapshot([player('Alice', 0), player('Bob', 3)])
 await say([7])
 assert.equal(B.heard.length, 3, 'delta update keeps routing')
+
+// goat horn from appsettings.json: Range 96, Volume 1.5, megaphone preset; 60 blocks fades from 12 to 96
+await snapshot([player('Alice', 0, { items: ['minecraft:goat_horn', 'minecraft:stick'] }), player('Bob', 60)])
+await say([9])
+assert.equal(B.heard.length, 4, 'the horn reaches past DefaultRange')
+mix = B.heard.at(-1)[5]
+assert.ok(Math.abs(mix.Volume - 2 * 1.5 * 36 / 84) < 1e-5, `horn volume ${mix.Volume}`)
+assert.deepEqual([mix.Highpass, mix.Lowpass, mix.Room], [500, 4000, false])
+assert.ok(Math.abs(mix.Distortion - 0.3) < 1e-6)
+
+// rooms: flat voice anywhere in the world, never twice when also close by
+const code = await A.voice.invoke('CreateRoom')
+await B.voice.invoke('JoinRoom', code.toLowerCase())
+await wait(150)
+assert.deepEqual(A.room, { code, members: ['Alice', 'Bob'] })
+await assert.rejects(B.voice.invoke('JoinRoom', 'NOPE00'), /не найдена/)
+await snapshot([player('Alice', 0), player('Bob', 3)])
+await say([10])
+assert.equal(B.heard.length, 5, 'one copy, not room + proximity')
+mix = B.heard.at(-1)[5]
+assert.deepEqual([mix.Room, mix.Volume, mix.Lowpass], [true, 2, 20000], 'flat, only the listener volume')
+await snapshot([player('Alice', 0), player('Bob', 0, { dimensionId: 'Nether' })])
+await say([11])
+assert.equal(B.heard.length, 6, 'room ignores distance and dimension')
+
+// in game: /room leave goes through the plugin and is answered with Tell
+await plugin.invoke('Room', 'x-Bob', 'leave', null)
+await wait(150)
+assert.deepEqual(told.at(-1), ['x-Bob', 'Вы вышли из комнаты'])
+assert.equal(B.room.code, null)
+assert.deepEqual(A.room.members, ['Alice'])
+await say([12])
+assert.equal(B.heard.length, 6, 'left the room, too far by proximity')
+await plugin.invoke('Room', 'x-Bob', 'join', code)
+await snapshot([], ['x-Alice'])
+await wait(150)
+assert.deepEqual(B.room.members, ['Bob'], 'leaving the game leaves the room')
+// bans: only ops (the plugin sends `admin`), checked on the server for the site and for /voiceban
+await assert.rejects(B.voice.invoke('Ban', 'x-Alice', 10), /опа/)
+await snapshot([player('Alice', 0, { admin: true }), player('Bob', 3)])
+await A.voice.invoke('Ban', 'x-Bob', 10)
+await wait(150)
+const [, , , , , , bobAdmin, bobBan] = B.self.at(-1)
+assert.equal(bobAdmin, false)
+assert.ok(bobBan > Date.now() + 9 * 60e3, `ban until ${bobBan}`)
+const heardByAlice = A.heard.length
+await B.voice.invoke('Voice', new Uint8Array([13]))
+await wait(150)
+assert.equal(A.heard.length, heardByAlice, 'banned speaker is not routed')
+await plugin.invoke('Ban', 'x-Bob', 'Alice', null)
+await wait(150)
+assert.deepEqual(told.at(-1), ['x-Bob', 'Нужны права опа'])
+await plugin.invoke('Unban', 'x-Alice', 'Bob')
+await wait(150)
+assert.deepEqual(told.at(-1), ['x-Alice', 'Bob снова может говорить'])
+assert.equal(B.self.at(-1)[7], null)
+await B.voice.invoke('Voice', new Uint8Array([14]))
+await wait(150)
+assert.equal(A.heard.length, heardByAlice + 1, 'unbanned speaker is heard again')
 
 await A.voice.stop()
 await wait(150)

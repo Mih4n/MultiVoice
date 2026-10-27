@@ -2,12 +2,13 @@ import { HubConnectionState } from '@microsoft/signalr'
 import { Microphone } from '~/audio/Microphone'
 import { ReverbImpulses } from '~/audio/ReverbImpulses'
 import { setListenerPose } from '~/audio/setListenerPose'
-import { SpeakerChain } from '~/audio/SpeakerChain'
+import { loadPitch, SpeakerChain } from '~/audio/SpeakerChain'
 import type { VoiceMix } from '~/audio/VoiceMix'
 
 // mirror PlayerVoice and SpeakerSetting on the server
-export type PlayerVoice = { Xuid: string, Name: string, State: 'listening' | 'mic' | 'speaking' }
+export type PlayerVoice = { Xuid: string, Name: string, State: 'listening' | 'mic' | 'speaking', Banned: boolean }
 export type SpeakerSetting = { Volume: number, Muted: boolean }
+export type Room = { code: string, members: string[] }
 
 // /voice hub: nearby speakers in, each through its own SpeakerChain; our mic out when it's on
 export function useVoice() {
@@ -25,8 +26,11 @@ export function useVoice() {
   const speaking = ref(false)
   const level = ref(0) // mic level 0..1 for the sensitivity meter
   const gameMuted = ref(false) // /mute in game
+  const admin = ref(false) // op in game: can ban
+  const bannedUntil = ref<number | null>(null) // null: may speak, 0: banned until lifted, else unix ms
   const players = ref<Record<string, PlayerVoice>>({}) // everyone else in voice, server-wide
   const settings = ref<Record<string, SpeakerSetting>>({})
+  const room = ref<Room | null>(null)
 
   const hub = createHub('/api/voice', { accessTokenFactory: () => tokenStorage.read() ?? '' })
   let ctx: AudioContext | null = null
@@ -34,8 +38,10 @@ export function useVoice() {
   let mic: Microphone | null = null
   const speakers = new Map<string, SpeakerChain>()
 
-  hub.on('Self', (x: number, y: number, z: number, yaw: number, pitch: number, isMuted: boolean) => {
+  hub.on('Self', (x: number, y: number, z: number, yaw: number, pitch: number, isMuted: boolean, isAdmin: boolean, ban: number | null) => {
     gameMuted.value = isMuted
+    admin.value = isAdmin
+    bannedUntil.value = ban
     if (ctx) setListenerPose(ctx, x, y, z, yaw, pitch)
   })
 
@@ -47,6 +53,7 @@ export function useVoice() {
     chain.decode(frame)
   })
 
+  hub.on('Room', (code: string | null, members: string[]) => { room.value = code ? { code, members } : null })
   hub.on('Settings', (saved: Record<string, SpeakerSetting>) => { settings.value = saved })
   hub.on('Players', (list: PlayerVoice[]) => { players.value = Object.fromEntries(list.map((p) => [p.Xuid, p])) })
   hub.on('PlayerState', (p: { Xuid: string, Name: string, State: PlayerVoice['State'] | 'off' }) => {
@@ -88,8 +95,9 @@ export function useVoice() {
   async function start() {
     if (hub.state !== HubConnectionState.Disconnected) return
     error.value = ''
-    ensureCtx()
+    const c = ensureCtx()
     try {
+      await loadPitch(c)
       await hub.start()
       live.value = true
     } catch (e) {
@@ -141,11 +149,17 @@ export function useVoice() {
     hub.invoke('SetMuted', xuid, muted).catch(report)
   }
 
+  const createRoom = () => hub.invoke<string>('CreateRoom').catch(report)
+  const joinRoom = (code: string) => hub.invoke('JoinRoom', code).catch(report)
+  const leaveRoom = () => hub.invoke('LeaveRoom').catch(report)
+  const ban = (xuid: string, minutes: number | null) => hub.invoke('Ban', xuid, minutes).catch(report)
+  const unban = (xuid: string) => hub.invoke('Unban', xuid).catch(report)
+
   onBeforeUnmount(() => {
     for (const type of ['pointerup', 'keydown']) document.removeEventListener(type, unlock)
     navigator.mediaDevices.removeEventListener('devicechange', refreshDevices)
     mic?.stop(); hub.stop(); ctx?.close()
   })
 
-  return { live, suspended, error, micOn, deafened, deviceId, devices, denoise, sensitivity, speaking, level, gameMuted, players, settings, start, setVolume, setMuted }
+  return { live, suspended, error, micOn, deafened, deviceId, devices, denoise, sensitivity, speaking, level, gameMuted, admin, bannedUntil, players, settings, room, start, setVolume, setMuted, createRoom, joinRoom, leaveRoom, ban, unban }
 }

@@ -14,8 +14,8 @@ class FakeForm:
 
 sys.modules["endstone"] = types.ModuleType("endstone")
 sys.modules["endstone.form"] = types.SimpleNamespace(ActionForm=FakeForm)
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src" / "endstone_multivoice"))
-from login import ASK_TIMEOUT, RETRY_SECONDS, LoginForms  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src" / "endstone_multivoice" / "login"))
+from forms import ASK_TIMEOUT, RETRY_SECONDS, LoginForms  # noqa: E402
 
 
 class FakePlayer:

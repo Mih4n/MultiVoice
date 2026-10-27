@@ -21,4 +21,7 @@ public sealed class MinecraftLink(IHubContext<MinecraftHub> hub)
 
     public Task VoiceStates(Dictionary<string, string> states) =>
         connectionId is { } id ? hub.Clients.Client(id).SendAsync("VoiceStates", states) : Task.CompletedTask;
+
+    public Task Tell(string xuid, string message) =>
+        connectionId is { } id ? hub.Clients.Client(id).SendAsync("Tell", xuid, message) : Task.CompletedTask;
 }

@@ -34,22 +34,35 @@ watch(auth.status, (status) => { if (status === 'ready') voice.start() }, { imme
       class="card"
       :players="voice.players.value"
       :settings="voice.settings.value"
+      :admin="voice.admin.value"
       @volume="voice.setVolume"
       @mute="voice.setMuted"
+      @ban="voice.ban"
+      @unban="voice.unban"
     />
-    <VoicePanel
-      v-model:mic-on="micOn"
-      v-model:deafened="deafened"
-      v-model:device-id="deviceId"
-      v-model:denoise="denoise"
-      v-model:sensitivity="sensitivity"
-      class="card"
-      :devices="voice.devices.value"
-      :suspended="voice.suspended.value"
-      :speaking="voice.speaking.value"
-      :level="voice.level.value"
-      :game-muted="voice.gameMuted.value"
-    />
+    <aside>
+      <VoicePanel
+        v-model:mic-on="micOn"
+        v-model:deafened="deafened"
+        v-model:device-id="deviceId"
+        v-model:denoise="denoise"
+        v-model:sensitivity="sensitivity"
+        class="card"
+        :devices="voice.devices.value"
+        :suspended="voice.suspended.value"
+        :speaking="voice.speaking.value"
+        :level="voice.level.value"
+        :game-muted="voice.gameMuted.value"
+        :banned-until="voice.bannedUntil.value"
+      />
+      <RoomPanel
+        class="card"
+        :room="voice.room.value"
+        @create="voice.createRoom"
+        @join="voice.joinRoom"
+        @leave="voice.leaveRoom"
+      />
+    </aside>
   </main>
 
   <Footer />
@@ -90,6 +103,11 @@ header {
   grid-template-columns: minmax(0, 1fr) 340px;
   align-items: start;
   gap: 20px;
+
+  aside {
+    display: grid;
+    gap: 20px;
+  }
 
   @media (max-width: 760px) {
     grid-template-columns: minmax(0, 1fr);

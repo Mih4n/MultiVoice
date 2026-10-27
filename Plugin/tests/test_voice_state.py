@@ -4,8 +4,8 @@ from pathlib import Path
 
 sys.modules.setdefault("endstone", types.ModuleType("endstone"))
 sys.modules["endstone.plugin"] = types.SimpleNamespace(Service=object)
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src" / "endstone_multivoice"))
-from voice_state import VoiceStates  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src" / "endstone_multivoice" / "voice"))
+from states import VoiceStates  # noqa: E402
 
 
 def setup():

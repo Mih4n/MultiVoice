@@ -2,10 +2,11 @@ using System.Collections.Concurrent;
 using Microsoft.AspNetCore.SignalR;
 using MultiVoice.Server.Minecraft;
 using MultiVoice.Server.Players;
+using MultiVoice.Server.Settings;
 
 namespace MultiVoice.Server.Voice;
 
-public sealed class VoiceStates(PlayerRegistry players, VoiceSessions sessions, MinecraftLink minecraft, IHubContext<VoiceHub> hub)
+public sealed class VoiceStates(PlayerRegistry players, VoiceSessions sessions, VoiceBans bans, MinecraftLink minecraft, IHubContext<VoiceHub> hub)
 {
     public const string Off = "off";
 
@@ -40,7 +41,7 @@ public sealed class VoiceStates(PlayerRegistry players, VoiceSessions sessions, 
                 {
                     var now = Current(xuid);
                     var before = sent.GetValueOrDefault(xuid);
-                    if (now.State == (before?.State ?? Off)) continue;
+                    if (before is null ? now.State == Off : now == before) continue;
                     if (now.State == Off) sent.Remove(xuid); else sent[xuid] = now;
                     changes.Add(now.State == Off && before is not null ? now with { Name = before.Name } : now);
                 }
@@ -66,6 +67,8 @@ public sealed class VoiceStates(PlayerRegistry players, VoiceSessions sessions, 
         var name = player?.Name ?? "";
         if (player is null || sessions.ConnectionOf(xuid) is null) return new(xuid, name, Off);
         var (mic, speaking) = flags.GetValueOrDefault(xuid);
-        return new(xuid, name, player.Muted || !mic ? "listening" : speaking ? "speaking" : "mic");
+        // shortcut: an expired ban shows until the player's next position change or voice report
+        var banned = bans.Active(xuid) is not null;
+        return new(xuid, name, player.Muted || banned || !mic ? "listening" : speaking ? "speaking" : "mic", banned);
     }
 }

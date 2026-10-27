@@ -1,7 +1,6 @@
 using System.Collections.Concurrent;
-using Microsoft.Extensions.Options;
 using MultiVoice.Server.Chunks;
-using MultiVoice.Server.Options;
+using MultiVoice.Server.Voice;
 
 namespace MultiVoice.Server.Players;
 
@@ -12,9 +11,9 @@ public sealed class PlayerRegistry
     readonly ConcurrentDictionary<string, string> xuidsByName = new(StringComparer.OrdinalIgnoreCase);
     readonly Lock writeLock = new();
 
-    public PlayerRegistry(IOptions<VoiceOptions> options)
+    public PlayerRegistry(VoiceItems items)
     {
-        chunkSize = options.Value.ChunkSize;
+        chunkSize = items.ChunkSize;
         World = new World([], chunkSize);
     }
 

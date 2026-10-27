@@ -5,7 +5,7 @@ using MultiVoice.Server.Settings;
 
 namespace MultiVoice.Server.Voice;
 
-public class VoiceHub(LoginService login, VoiceSessions sessions, VoiceRouter router, VoiceStates states, SpeakerSettings settings, PlayerRegistry players) : Hub
+public class VoiceHub(LoginService login, VoiceSessions sessions, VoiceRouter router, VoiceStates states, SpeakerSettings settings, PlayerRegistry players, RoomActions rooms, Moderation moderation, VoiceRouter self) : Hub
 {
     public override async Task OnConnectedAsync()
     {
@@ -21,6 +21,8 @@ public class VoiceHub(LoginService login, VoiceSessions sessions, VoiceRouter ro
         sessions.Bind(Context.ConnectionId, user.Xuid);
         await Clients.Caller.SendAsync("Settings", settings.Of(user.Xuid));
         await Clients.Caller.SendAsync("Players", states.Snapshot(user.Xuid));
+        await rooms.Push(user.Xuid);
+        if (players.Get(user.Xuid) is { } me) await self.PushListeners([me]);
         await states.Refresh([user.Xuid]);
     }
 
@@ -34,6 +36,29 @@ public class VoiceHub(LoginService login, VoiceSessions sessions, VoiceRouter ro
         return states.Refresh([xuid]);
     }
 
+    public Task<string> CreateRoom() => rooms.Create(Me());
+
+    public async Task JoinRoom(string code)
+    {
+        if (!await rooms.Join(Me(), code)) throw new HubException("Комната не найдена");
+    }
+
+    public Task LeaveRoom() => rooms.Leave(Me());
+
+    public Task Ban(string xuid, int? minutes)
+    {
+        if (minutes is <= 0) throw new HubException("Неверный срок");
+        return moderation.Ban(Target(xuid), minutes);
+    }
+
+    public Task Unban(string xuid) => moderation.Unban(Target(xuid));
+
+    string Target(string xuid)
+    {
+        if (!moderation.IsAdmin(Me())) throw new HubException("Нужны права опа");
+        return players.Get(xuid)?.Xuid ?? throw new HubException("Игрок не в игре");
+    }
+
     public Task SetVolume(string speakerXuid, float volume)
     {
         if (!float.IsFinite(volume)) throw new HubException("Неверная громкость");
@@ -44,10 +69,12 @@ public class VoiceHub(LoginService login, VoiceSessions sessions, VoiceRouter ro
 
     Task ChangeSetting(string speakerXuid, Func<SpeakerSetting, SpeakerSetting> change)
     {
-        if (sessions.XuidOf(Context.ConnectionId) is not { } me) throw new HubException("Нет голосовой сессии");
+        var me = Me();
         if (speakerXuid == me || players.Get(speakerXuid) is null) throw new HubException("Игрок не в игре");
         return settings.Change(me, speakerXuid, change);
     }
+
+    string Me() => sessions.XuidOf(Context.ConnectionId) ?? throw new HubException("Нет голосовой сессии");
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {

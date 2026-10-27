@@ -47,6 +47,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Jitter buffer check
+        run: node scripts/jitter-check.mjs
+
       - name: Build
         run: npm run build
 

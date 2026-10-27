@@ -11,5 +11,7 @@ public record PlayerPosition(
     string DimensionId,
     bool InWater,
     bool InCave,
-    bool Muted
+    bool Muted,
+    string[]? Items = null,
+    bool Admin = false
 );

@@ -1,9 +1,14 @@
 <script setup lang="ts">
-import { mdiAccountVoice, mdiHeadphones, mdiMicrophone, mdiVolumeHigh, mdiVolumeOff } from '@mdi/js'
+import { mdiAccountVoice, mdiClose, mdiGavel, mdiHeadphones, mdiMicrophone, mdiMicrophoneOff, mdiVolumeHigh, mdiVolumeOff } from '@mdi/js'
 import type { PlayerVoice, SpeakerSetting } from '~/composables/useVoice'
 
-const props = defineProps<{ players: Record<string, PlayerVoice>, settings: Record<string, SpeakerSetting> }>()
-const emit = defineEmits<{ volume: [xuid: string, volume: number, save: boolean], mute: [xuid: string, muted: boolean] }>()
+const props = defineProps<{ players: Record<string, PlayerVoice>, settings: Record<string, SpeakerSetting>, admin: boolean }>()
+const emit = defineEmits<{
+  volume: [xuid: string, volume: number, save: boolean]
+  mute: [xuid: string, muted: boolean]
+  ban: [xuid: string, minutes: number | null]
+  unban: [xuid: string]
+}>()
 
 const STATES = {
   listening: { label: 'слушает', icon: mdiHeadphones },
@@ -15,6 +20,18 @@ const setting = (xuid: string) => props.settings[xuid] ?? { Volume: 1, Muted: fa
 const percent = (xuid: string) => `${Math.round(setting(xuid).Volume * 100)}%`
 const toggleMute = (xuid: string) => emit('mute', xuid, !setting(xuid).Muted)
 const volumeOf = (e: Event) => Number((e.target as HTMLInputElement).value)
+
+const BAN_TERMS = [
+  { label: '10 мин', minutes: 10 },
+  { label: '1 час', minutes: 60 },
+  { label: '1 день', minutes: 1440 },
+  { label: 'Навсегда', minutes: null },
+]
+const banning = ref<string | null>(null) // whose ban terms are open
+function ban(xuid: string, minutes: number | null) {
+  emit('ban', xuid, minutes)
+  banning.value = null
+}
 </script>
 
 <template>
@@ -29,6 +46,10 @@ const volumeOf = (e: Event) => Number((e.target as HTMLInputElement).value)
             <span class="sr-only">{{ STATES[p.State].label }}</span>
           </span>
           <span class="name">{{ p.Name }}</span>
+          <span v-if="p.Banned" class="banned" title="Запрещено говорить">
+            <Icon :path="mdiMicrophoneOff" />
+            <span class="sr-only">запрещено говорить</span>
+          </span>
         </div>
         <div class="controls">
           <Button
@@ -45,6 +66,31 @@ const volumeOf = (e: Event) => Number((e.target as HTMLInputElement).value)
             @change="emit('volume', p.Xuid, volumeOf($event), true)"
           >
           <output :for="`volume-${p.Xuid}`">{{ percent(p.Xuid) }}</output>
+          <template v-if="admin">
+            <Button
+              v-if="p.Banned" class="icon red" role="button" tabindex="0"
+              :aria-label="`Разрешить говорить ${p.Name}`" title="Снять запрет"
+              @click="emit('unban', p.Xuid)" @keydown.enter.space.prevent="emit('unban', p.Xuid)"
+            >
+              <Icon :path="mdiGavel" />
+            </Button>
+            <Button
+              v-else class="icon" role="button" tabindex="0" :aria-expanded="banning === p.Xuid"
+              :aria-label="`Запретить говорить ${p.Name}`" title="Запретить говорить"
+              @click="banning = banning === p.Xuid ? null : p.Xuid"
+              @keydown.enter.space.prevent="banning = banning === p.Xuid ? null : p.Xuid"
+            >
+              <Icon :path="banning === p.Xuid ? mdiClose : mdiGavel" />
+            </Button>
+          </template>
+        </div>
+        <div v-if="admin && banning === p.Xuid && !p.Banned" class="terms" role="group" :aria-label="`Срок запрета для ${p.Name}`">
+          <Button
+            v-for="term in BAN_TERMS" :key="term.label" class="red" role="button" tabindex="0"
+            @click="ban(p.Xuid, term.minutes)" @keydown.enter.space.prevent="ban(p.Xuid, term.minutes)"
+          >
+            {{ term.label }}
+          </Button>
         </div>
       </li>
     </ul>
@@ -62,7 +108,7 @@ ul {
 
 li {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 280px);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 330px);
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
@@ -118,6 +164,26 @@ li {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.banned {
+  flex: none;
+  display: inline-grid;
+  color: var(--scolor-error);
+}
+
+.terms {
+  grid-column: 1 / -1;
+
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+
+  .button {
+    flex: 1;
+    padding: 5px 12px;
+    white-space: nowrap;
+  }
 }
 
 output {
