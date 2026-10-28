@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { mdiLogout } from '@mdi/js'
+import { mdiLogout, mdiServerNetwork } from '@mdi/js'
 
 const auth = useAuth()
 const voice = useVoice()
@@ -9,9 +9,12 @@ watch(auth.status, (status) => { if (status === 'ready') voice.start() }, { imme
 
 <template>
   <header>
-    <h1>MultiVoice</h1>
+    <h1><a href="https://multi-punk.net">MultiVoice</a></h1>
     <div class="who">
       <LightDarkToggle />
+      <Button v-if="!serverUrl.configured() && auth.status.value !== 'server'" class="icon" role="button" tabindex="0" aria-label="Сменить сервер" title="Сменить сервер" @click="serverUrl.write(null)" @keydown.enter.space.prevent="serverUrl.write(null)">
+        <Icon :path="mdiServerNetwork" />
+      </Button>
       <template v-if="auth.status.value === 'ready'">
         <span>{{ auth.name.value }}</span>
         <Button class="icon" role="button" tabindex="0" aria-label="Выйти" title="Выйти" @click="auth.logout" @keydown.enter.space.prevent="auth.logout">
@@ -24,6 +27,7 @@ watch(auth.status, (status) => { if (status === 'ready') voice.start() }, { imme
   <main v-if="auth.status.value !== 'ready'" class="single">
     <div class="card">
       <p v-if="auth.status.value === 'connecting'">Подключение…</p>
+      <ServerForm v-else-if="auth.status.value === 'server'" @submit="serverUrl.write" />
       <LoginForm v-else-if="auth.status.value === 'login'" @submit="auth.requestCode" />
       <CodePrompt v-else :code="auth.code.value" />
     </div>

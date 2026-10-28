@@ -155,4 +155,23 @@ environment:
 
 Env накладывается на `appsettings.json` из образа по ключам, массивы — по индексу: `Voice__Items__0__*` заменяет пример с рогом козы, а пресеты из файла остаются доступны.
 
-Сайту нужен адрес backend, каким его видит браузер: `NUXT_PUBLIC_SERVER_URL`.
+Сайту нужен адрес backend, каким его видит браузер: `NUXT_PUBLIC_SERVER_URL`. Без него сайт спросит адрес у пользователя и запомнит его.
+
+## Android-приложение
+
+Тот же сайт в WebView ([Capacitor](https://capacitorjs.com)). Пока голос подключён, `VoiceService` держит уведомление «Голосовая связь подключена», и Android не усыпляет приложение в фоне.
+
+При первом запуске приложение спрашивает адрес сервера. В `Origins` backend нужно добавить `https://localhost`: это origin приложения.
+
+CI собирает подписанный `MultiVoice.apk` на каждый push (артефакт `multivoice-android`) и прикладывает его к релизу. Ключ подписи лежит в секретах репозитория: `ANDROID_KEYSTORE_BASE64` (keystore в base64, alias `multivoice`) и `ANDROID_KEYSTORE_PASSWORD`. Если ключ потерять, новые сборки не встанут поверх старых.
+
+Локально:
+
+```sh
+cd Frontend
+npm run android
+cd android && ./gradlew assembleDebug # нужен Android SDK в ANDROID_HOME
+# APK: android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+На NixOS aapt2 из Maven не запускается, берём его из SDK: `-Pandroid.aapt2FromMavenOverride=$ANDROID_HOME/build-tools/36.0.0/aapt2`.

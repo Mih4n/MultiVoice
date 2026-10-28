@@ -1,6 +1,6 @@
 // /auth hub: nickname -> code shown here -> confirmed in game -> token
 export function useAuth() {
-  const status = ref<'connecting' | 'login' | 'waiting' | 'ready'>('connecting')
+  const status = ref<'server' | 'connecting' | 'login' | 'waiting' | 'ready'>(serverUrl.read() ? 'connecting' : 'server')
   const error = ref('')
   const code = ref<number | null>(null)
   const name = ref('')
@@ -34,6 +34,7 @@ export function useAuth() {
   hub.on('Rejected', () => { code.value = null; status.value = 'login'; error.value = 'Подтверждение отклонено в игре' })
 
   onMounted(async () => {
+    if (status.value === 'server') return
     try {
       await hub.start()
       const token = tokenStorage.read()

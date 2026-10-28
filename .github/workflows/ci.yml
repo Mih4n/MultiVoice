@@ -45,3 +45,58 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "${{ github.event.release.tag_name }}" dist/*.whl --clobber --repo "${{ github.repository }}"
+
+  android:
+    name: Build Android app
+    needs: tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: Frontend
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: Frontend/package-lock.json
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      # no NUXT_PUBLIC_SERVER_URL: the app asks for the server on first launch
+      - name: Build web assets
+        run: |
+          npm ci
+          npm run android
+
+      # the runner has the Android SDK; the key comes from secrets, so every build installs over the last one
+      - name: Build APK
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          cd android
+          ANDROID_KEYSTORE="$RUNNER_TEMP/release.jks" ./gradlew assembleRelease
+          mv app/build/outputs/apk/release/app-release.apk ../MultiVoice.apk
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: multivoice-android
+          path: Frontend/MultiVoice.apk
+
+      - name: Attach to release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" MultiVoice.apk --clobber --repo "${{ github.repository }}"

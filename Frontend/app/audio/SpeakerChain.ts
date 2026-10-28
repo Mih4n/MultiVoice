@@ -25,14 +25,14 @@ export class SpeakerChain {
   private readonly echo: DelayNode
   private readonly echoFeedback: GainNode
   private readonly echoWet: GainNode
-  private readonly decoder: AudioDecoder
+  private decoder: AudioDecoder
   private reverbDecay = 2
   private drive = 0
   private room = false
   private timestamp = 0
   private readonly jitter = new JitterBuffer()
 
-  constructor(private readonly ctx: AudioContext, private readonly impulses: ReverbImpulses, out: AudioNode, name: string) {
+  constructor(private readonly ctx: AudioContext, private readonly impulses: ReverbImpulses, out: AudioNode, private readonly name: string) {
     // the server sends the distance volume, so the panner only does direction
     this.panner = new PannerNode(ctx, { panningModel: 'HRTF', rolloffFactor: 0 })
     this.pitch = new AudioWorkletNode(ctx, 'pitch') // module loaded by loadPitch() before any chain exists
@@ -53,11 +53,16 @@ export class SpeakerChain {
     this.volume.connect(this.echoWet).connect(this.echo).connect(out)
     this.echo.connect(this.echoFeedback).connect(this.echo)
 
-    this.decoder = new AudioDecoder({
+    this.decoder = this.createDecoder()
+  }
+
+  private createDecoder() {
+    const decoder = new AudioDecoder({
       output: (data) => this.play(data),
-      error: (e) => console.error('decoder', name, e),
+      error: (e) => console.error('decoder', this.name, e),
     })
-    this.decoder.configure({ codec: 'opus', sampleRate: 48000, numberOfChannels: 1 })
+    decoder.configure({ codec: 'opus', sampleRate: 48000, numberOfChannels: 1 })
+    return decoder
   }
 
   apply(x: number, y: number, z: number, mix: VoiceMix) {
@@ -88,6 +93,8 @@ export class SpeakerChain {
   }
 
   decode(frame: Uint8Array) {
+    // phones reclaim codecs of a page in the background, and a closed decoder never comes back
+    if (this.decoder.state === 'closed') this.decoder = this.createDecoder()
     this.decoder.decode(new EncodedAudioChunk({ type: 'key', timestamp: this.timestamp += FRAME_US, data: frame }))
   }
 

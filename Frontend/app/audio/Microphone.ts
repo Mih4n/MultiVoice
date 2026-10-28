@@ -16,6 +16,11 @@ export class Microphone {
     private readonly onError: (message: string) => void,
   ) {}
 
+  // phones end the track or reclaim the encoder while the page is in the background
+  get dead() {
+    return this.stream?.getAudioTracks()[0]?.readyState === 'ended' || this.encoder?.state === 'closed'
+  }
+
   configure(denoise: boolean, sensitivity: number) {
     this.settings = { denoise, sensitivity }
     this.capture?.port.postMessage(this.settings)

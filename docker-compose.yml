@@ -13,6 +13,7 @@ services:
       Voice__McSecret: change-me # same as `secret` in the plugin's config.toml
       Voice__DevHub: "false"
       Voice__Origins__0: https://voice.example.com
+      Voice__Origins__1: https://localhost # the Android app
       Voice__DefaultRange: "32"
 
       # effect presets: Voice__Effects__<preset>__<key>

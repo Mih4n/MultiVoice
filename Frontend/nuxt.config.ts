@@ -39,7 +39,11 @@ export default defineNuxtConfig({
     // the capture worklet bundles RNNoise; module output keeps import.meta.url, which a worklet has and `self` doesn't
     worker: { format: 'es' },
   },
+  // empty: the user types the server in (the Android app is built this way)
   runtimeConfig: {
-    public: { serverUrl: 'http://localhost:5000' },
+    public: { serverUrl: '' },
+  },
+  $development: {
+    runtimeConfig: { public: { serverUrl: 'http://localhost:5000' } },
   },
 })

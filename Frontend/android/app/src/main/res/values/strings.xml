@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">MultiVoice</string>
+    <string name="title_activity_main">MultiVoice</string>
+    <string name="package_name">com.multipunk.multivoice</string>
+    <string name="custom_url_scheme">com.multipunk.multivoice</string>
+</resources>

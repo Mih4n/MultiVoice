@@ -1,3 +1,4 @@
+import { Capacitor, registerPlugin } from '@capacitor/core'
 import { HubConnectionState } from '@microsoft/signalr'
 import { Microphone } from '~/audio/Microphone'
 import { ReverbImpulses } from '~/audio/ReverbImpulses'
@@ -9,6 +10,9 @@ import type { VoiceMix } from '~/audio/VoiceMix'
 export type PlayerVoice = { Xuid: string, Name: string, State: 'listening' | 'mic' | 'speaking', Banned: boolean }
 export type SpeakerSetting = { Volume: number, Muted: boolean }
 export type Room = { code: string, members: string[] }
+
+// Android app only: VoiceService keeps the voice alive in the background
+const voiceService = registerPlugin<{ start(): Promise<void> }>('Voice')
 
 // /voice hub: nearby speakers in, each through its own SpeakerChain; our mic out when it's on
 export function useVoice() {
@@ -70,6 +74,8 @@ export function useVoice() {
   watch([micLive, speaking], sendState)
   watch([denoise, sensitivity], ([d, s]) => mic?.configure(d, s))
   watch(talking, (on) => on ? startMic() : stopMic())
+  // again once the mic is on: the service only gets background mic access with the permission already granted
+  watch([live, micLive], ([on]) => { if (on && Capacitor.isNativePlatform()) voiceService.start().catch(report) })
   watch(deviceId, () => { if (mic) { stopMic(); startMic() } })
 
   // labels are only filled in once the mic permission is granted
@@ -92,6 +98,15 @@ export function useVoice() {
   // pointerup, not pointerdown: on touch screens only the release unlocks audio
   const unlock = () => { ensureCtx().resume() }
   for (const type of ['pointerup', 'keydown']) document.addEventListener(type, unlock)
+
+  // back from the background on a phone: the socket may have given up reconnecting, audio may be interrupted, the mic dead
+  function wake() {
+    if (document.visibilityState !== 'visible' || !live.value) return
+    ctx?.resume().catch(() => {}) // if the browser wants a tap instead, the suspended hint asks for it
+    if (hub.state === HubConnectionState.Disconnected) start()
+    if (mic?.dead) { stopMic(); if (talking.value) startMic() }
+  }
+  document.addEventListener('visibilitychange', wake)
 
   // called once logged in; the mic permission is asked once, then the browser remembers it
   async function start() {
@@ -159,6 +174,7 @@ export function useVoice() {
 
   onBeforeUnmount(() => {
     for (const type of ['pointerup', 'keydown']) document.removeEventListener(type, unlock)
+    document.removeEventListener('visibilitychange', wake)
     navigator.mediaDevices.removeEventListener('devicechange', refreshDevices)
     mic?.stop(); hub.stop(); ctx?.close()
   })
