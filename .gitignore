@@ -23,3 +23,15 @@ build/
 # local BDS (Endstone.Nix data dir)
 bds/
 
+
+# devenv: .android holds the emulator, local.properties the SDK path
+.devenv*
+devenv.local.nix
+.pre-commit-config.yaml
+.android/
+local.properties
+
+# Java language server
+.project
+.settings/
+.classpath

@@ -165,7 +165,9 @@ Env накладывается на `appsettings.json` из образа по к
 
 CI собирает подписанный `MultiVoice.apk` на каждый push (артефакт `multivoice-android`) и прикладывает его к релизу. Ключ подписи лежит в секретах репозитория: `ANDROID_KEYSTORE_BASE64` (keystore в base64, alias `multivoice`) и `ANDROID_KEYSTORE_PASSWORD`. Если ключ потерять, новые сборки не встанут поверх старых.
 
-Локально:
+В эмуляторе: `devenv shell -- android-run` (в `devenv.nix` есть SDK и эмулятор; первый запуск качает их долго).
+
+Вручную:
 
 ```sh
 cd Frontend
