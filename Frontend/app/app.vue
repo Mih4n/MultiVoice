@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { mdiLogout, mdiServerNetwork } from '@mdi/js'
+import Logo from '~/assets/images/svg/multivoice.svg'
 
 const auth = useAuth()
 const voice = useVoice()
@@ -9,7 +10,12 @@ watch(auth.status, (status) => { if (status === 'ready') voice.start() }, { imme
 
 <template>
   <header>
-    <h1><a href="https://multi-punk.net">MultiVoice</a></h1>
+    <h1>
+      <a href="https://multi-punk.net" aria-label="MultiVoice">
+        <Logo aria-hidden="true" />
+        <span>MultiVoice</span>
+      </a>
+    </h1>
     <div class="who">
       <LightDarkToggle />
       <Button v-if="!serverUrl.configured() && auth.status.value !== 'server'" class="icon" role="button" tabindex="0" aria-label="Сменить сервер" title="Сменить сервер" @click="serverUrl.write(null)" @keydown.enter.space.prevent="serverUrl.write(null)">
@@ -86,6 +92,23 @@ header {
 
   h1 {
     font-size: 1.5rem;
+
+    a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    svg {
+      height: 32px;
+      width: auto;
+    }
+
+    @media (max-width: 760px) {
+      span {
+        display: none;
+      }
+    }
   }
 }
 
