@@ -1,4 +1,4 @@
-import { Capacitor, registerPlugin } from '@capacitor/core'
+import { Capacitor, registerPlugin, type PluginListenerHandle } from '@capacitor/core'
 import { HubConnectionState } from '@microsoft/signalr'
 import { Microphone } from '~/audio/Microphone'
 import { ReverbImpulses } from '~/audio/ReverbImpulses'
@@ -12,7 +12,10 @@ export type SpeakerSetting = { Volume: number, Muted: boolean }
 export type Room = { code: string, members: string[] }
 
 // Android app only: VoiceService keeps the voice alive in the background
-const voiceService = registerPlugin<{ start(): Promise<void> }>('Voice')
+const voiceService = registerPlugin<{
+  start(state: { micOn: boolean, deafened: boolean }): Promise<void>
+  addListener(event: 'action', listener: (e: { action: 'mic' | 'deafen' }) => void): Promise<PluginListenerHandle>
+}>('Voice')
 
 // /voice hub: nearby speakers in, each through its own SpeakerChain; our mic out when it's on
 export function useVoice() {
@@ -74,8 +77,15 @@ export function useVoice() {
   watch([micLive, speaking], sendState)
   watch([denoise, sensitivity], ([d, s]) => mic?.configure(d, s))
   watch(talking, (on) => on ? startMic() : stopMic())
-  // again once the mic is on: the service only gets background mic access with the permission already granted
-  watch([live, micLive], ([on]) => { if (on && Capacitor.isNativePlatform()) voiceService.start().catch(report) })
+  // again once the mic is on: the service only gets background mic access with the permission already granted;
+  // and on every toggle, so the notification shows it
+  watch([live, micLive, micOn, deafened], ([on]) => {
+    if (on && Capacitor.isNativePlatform()) voiceService.start({ micOn: micOn.value, deafened: deafened.value }).catch(report)
+  })
+  // the notification's mic and sound buttons
+  if (Capacitor.isNativePlatform()) {
+    voiceService.addListener('action', ({ action }) => { if (action === 'mic') micOn.value = !micOn.value; else deafened.value = !deafened.value })
+  }
   watch(deviceId, () => { if (mic) { stopMic(); startMic() } })
 
   // labels are only filled in once the mic permission is granted
