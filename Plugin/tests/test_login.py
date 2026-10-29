@@ -5,8 +5,11 @@ from pathlib import Path
 
 class FakeForm:
     def __init__(self, title="", content="", on_close=None):
-        self.on_close = on_close
-        self.buttons = []
+        self.title, self.on_close = title, on_close
+        self.labels, self.buttons = [], []
+
+    def add_label(self, text):
+        self.labels.append(text)
 
     def add_button(self, text, on_click=None):
         self.buttons.append((text, on_click))
@@ -28,10 +31,10 @@ class FakePlayer:
         self.forms.append(form)
 
 
-def setup():
+def setup(config=None):
     player, sent, now = FakePlayer(), [], [0.0]
     server = types.SimpleNamespace(get_player=lambda name: player if name == player.name else None)
-    login = LoginForms(server, lambda *a: sent.append(a), clock=lambda: now[0])
+    login = LoginForms(server, lambda *a: sent.append(a), config, clock=lambda: now[0])
     login.receive(["Steve", [11, 22, 33]])
     return login, player, sent, now
 
@@ -62,3 +65,20 @@ def test_unanswered_form_expires():
     now[0] += ASK_TIMEOUT + 1
     login.tick()
     assert login.pending == {}
+
+
+def test_default_form_has_no_label():
+    login, player, _, _ = setup()
+    login.tick()
+    form = player.forms[0]
+    assert (form.title, form.labels) == ("MultiVoice", [])
+    assert [text for text, _ in form.buttons] == ["11", "22", "33", "Это не я"]
+
+
+def test_configured_texts():
+    login, player, _, _ = setup({"title": "multi:terminal_{player}", "label": "Код для {player}?",
+                                 "code_button": "§a{code} {typo}", "deny_button": "Нет"})
+    login.tick()
+    form = player.forms[0]
+    assert (form.title, form.labels) == ("multi:terminal_Steve", ["Код для Steve?"])
+    assert [text for text, _ in form.buttons] == ["§a11 {typo}", "§a22 {typo}", "§a33 {typo}", "Нет"]

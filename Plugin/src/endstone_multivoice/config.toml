@@ -3,3 +3,12 @@ url = "http://localhost:5000/api/minecraft"
 secret = "change-me"
 # how often player positions are sent, in ticks (20 ticks = 1 s)
 period_ticks = 2
+
+# Login confirmation form; the section and every key in it are optional.
+# Texts are shown as is or formatted with {player} (and {code} on code_button).
+[login_form]
+title = "MultiVoice"
+# text above the buttons; empty or deleted hides it
+label = "Какой код показан на сайте?"
+code_button = "{code}"
+deny_button = "Это не я"

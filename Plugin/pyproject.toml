@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "endstone-multivoice"
-version = "0.1.0"
+version = "0.2.0"
 description = "Sends player positions to the MultiVoice server and confirms web logins."
 dependencies = ["signalrcore>=1.0.2"]
 

@@ -17,12 +17,18 @@ class PendingAsk:
     retry_at: float = 0
 
 
+class Placeholders(dict):
+    def __missing__(self, key: str) -> str:
+        return "{" + key + "}"  # a typo in the config shows up as is instead of breaking the form
+
+
 class LoginForms:
     """Asks players in game which code the site shows."""
 
-    def __init__(self, server, send, clock=time.monotonic) -> None:
+    def __init__(self, server, send, config: dict | None = None, clock=time.monotonic) -> None:
         self.server = server
         self.send = send
+        self.config = config or {}  # [login_form]; a missing key falls back to the defaults below
         self.clock = clock
         self.incoming: queue.Queue[list] = queue.Queue()  # hub thread -> main thread
         self.pending: dict[str, PendingAsk] = {}  # player name -> unanswered form
@@ -51,11 +57,14 @@ class LoginForms:
         entry = PendingAsk(deadline=self.clock() + ASK_TIMEOUT)
         # a busy client (pause menu while the player is on the site, chat open) closes the form at once,
         # so a closed form is shown again; "Это не я" is the way to refuse
-        entry.form = ActionForm(title="MultiVoice", content="Какой код показан на сайте?",
-                                on_close=lambda player: setattr(entry, "shown", False))
+        text = lambda key, default, **values: self.config.get(key, default).format_map(Placeholders(player=name, **values))
+        entry.form = ActionForm(title=text("title", "MultiVoice"), on_close=lambda player: setattr(entry, "shown", False))
+        if label := text("label", ""):
+            entry.form.add_label(label)
         for code in codes:
-            entry.form.add_button(str(code), on_click=lambda player, c=code: self.answer(player, entry, c))
-        entry.form.add_button("Это не я", on_click=lambda player: self.answer(player, entry, 0))
+            entry.form.add_button(text("code_button", "{code}", code=code),
+                                  on_click=lambda player, c=code: self.answer(player, entry, c))
+        entry.form.add_button(text("deny_button", "Это не я"), on_click=lambda player: self.answer(player, entry, 0))
         self.pending[name] = entry
 
     def answer(self, player, entry: PendingAsk, code: int) -> None:

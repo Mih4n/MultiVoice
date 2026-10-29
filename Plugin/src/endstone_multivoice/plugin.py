@@ -59,7 +59,7 @@ class MultiVoicePlugin(Plugin):
                                  "VoiceStates": lambda args: self.voice_states.receive(args),
                                  "Tell": lambda args: self.replies.receive(args)},
                        on_open=self.reconnected)
-        self.login = LoginForms(self.server, self.hub.send)
+        self.login = LoginForms(self.server, self.hub.send, self.config.get("login_form"))
         self.positions = PositionSync(self.server, self.hub.send, self.muted)
         self.voice_states = VoiceStates(self.server)
         self.replies = Replies(self.server)
