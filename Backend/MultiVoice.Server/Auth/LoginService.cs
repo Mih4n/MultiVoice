@@ -18,7 +18,7 @@ public sealed class LoginService(PlayerRegistry players, MinecraftLink minecraft
     public async Task<int> RequestCode(string name, string connectionId)
     {
         name = name.Trim();
-        if (players.XuidOf(name) is not { } xuid) throw new HubException("Игрок не в игре");
+        if (players.XuidOf(name) is not { } xuid || players.Get(xuid) is not { } player) throw new HubException("Игрок не в игре");
         if (pending.TryGetValue(xuid, out var old) && old.Created > DateTime.UtcNow - RequestCooldown)
             throw new HubException("Повторный запрос возможен через 30 секунд");
 
@@ -29,7 +29,7 @@ public sealed class LoginService(PlayerRegistry players, MinecraftLink minecraft
         Random.Shared.Shuffle(buttons);
 
         pending[xuid] = new PendingLogin(connectionId, correct, DateTime.UtcNow);
-        if (!await minecraft.Ask(players.Get(xuid)?.Name ?? name, buttons)) throw new HubException("Сервер Minecraft не подключён");
+        if (!await minecraft.Ask(player.Server, player.Name, buttons)) throw new HubException("Сервер Minecraft не подключён");
         return correct;
     }
 

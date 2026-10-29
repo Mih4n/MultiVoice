@@ -128,6 +128,8 @@ secret = "change-me"   # = Voice:McSecret
 period_ticks = 2       # как часто слать позиции (20 тиков = 1 с)
 ```
 
+К одному backend можно подключить несколько серверов Minecraft. Плагин при каждом запуске создаёт новый id и шлёт его в заголовке `X-Server`; игроков по близости слышно только на своём сервере, комнаты и запреты общие. Плагин без id тоже работает — как отдельный сервер.
+
 Другие плагины могут читать состояние голоса через сервис `multivoice` (`soft_depend = ["multivoice"]`): `get_state(player)` → `off | listening | mic | speaking`, `on_change(callback)`.
 
 ## Docker Compose

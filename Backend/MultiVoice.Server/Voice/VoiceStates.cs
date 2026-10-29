@@ -11,7 +11,7 @@ public sealed class VoiceStates(PlayerRegistry players, VoiceSessions sessions, 
     public const string Off = "off";
 
     readonly ConcurrentDictionary<string, (bool Mic, bool Speaking)> flags = new();
-    readonly Dictionary<string, PlayerVoice> sent = new();
+    readonly Dictionary<string, (PlayerVoice Voice, string? Server)> sent = new();
     readonly SemaphoreSlim pushLock = new(1, 1);
 
     public void Report(string xuid, bool mic, bool speaking) => flags[xuid] = (mic, speaking);
@@ -35,20 +35,29 @@ public sealed class VoiceStates(PlayerRegistry players, VoiceSessions sessions, 
         try
         {
             var changes = new List<PlayerVoice>();
+            var toPlugins = new List<(string? Server, string Xuid, string State)>();
             lock (sent)
             {
                 foreach (var xuid in xuids.Distinct())
                 {
                     var now = Current(xuid);
-                    var before = sent.GetValueOrDefault(xuid);
-                    if (before is null ? now.State == Off : now == before) continue;
-                    if (now.State == Off) sent.Remove(xuid); else sent[xuid] = now;
-                    changes.Add(now.State == Off && before is not null ? now with { Name = before.Name } : now);
+                    var server = players.Get(xuid)?.Server;
+                    var had = sent.TryGetValue(xuid, out var before);
+                    if (had ? (now, server) == before : now.State == Off) continue;
+                    // a player who left or moved to another server is off on the one that had them
+                    if (had && (now.State == Off || server != before.Server)) toPlugins.Add((before.Server, xuid, Off));
+                    if (now.State == Off) sent.Remove(xuid);
+                    else
+                    {
+                        sent[xuid] = (now, server);
+                        toPlugins.Add((server, xuid, now.State));
+                    }
+                    if (!had || now != before.Voice) changes.Add(now.State == Off && had ? now with { Name = before.Voice.Name } : now);
                 }
             }
-            if (changes.Count == 0) return;
 
-            await minecraft.VoiceStates(changes.ToDictionary(p => p.Xuid, p => p.State));
+            foreach (var group in toPlugins.GroupBy(c => c.Server))
+                await minecraft.VoiceStates(group.Key, group.ToDictionary(c => c.Xuid, c => c.State));
             foreach (var change in changes)
             {
                 var own = sessions.ConnectionOf(change.Xuid);

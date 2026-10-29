@@ -1,27 +1,33 @@
+using System.Collections.Concurrent;
 using Microsoft.AspNetCore.SignalR;
 
 namespace MultiVoice.Server.Minecraft;
 
 public sealed class MinecraftLink(IHubContext<MinecraftHub> hub)
 {
-    string? connectionId;
+    // connection id -> server id; null is a plugin that sends no id
+    readonly ConcurrentDictionary<string, string?> servers = new();
 
-    public bool Is(string id) => id == connectionId;
+    public bool TryServer(string id, out string? server) => servers.TryGetValue(id, out server);
 
-    public void Attach(string id) => connectionId = id;
-
-    public bool Detach(string id) => Interlocked.CompareExchange(ref connectionId, null, id) == id;
-
-    public async Task<bool> Ask(string name, int[] codes)
+    // a reconnect of the same server replaces its old connection
+    public void Attach(string id, string? server)
     {
-        if (connectionId is not { } id) return false;
+        foreach (var old in servers.Where(s => s.Value == server)) servers.TryRemove(old);
+        servers[id] = server;
+    }
+
+    public bool Detach(string id, out string? server) => servers.TryRemove(id, out server);
+
+    public async Task<bool> Ask(string? server, string name, int[] codes)
+    {
+        if (Connection(server) is not { } id) return false;
         await hub.Clients.Client(id).SendAsync("Ask", name, codes);
         return true;
     }
 
-    public Task VoiceStates(Dictionary<string, string> states) =>
-        connectionId is { } id ? hub.Clients.Client(id).SendAsync("VoiceStates", states) : Task.CompletedTask;
+    public Task VoiceStates(string? server, Dictionary<string, string> states) =>
+        Connection(server) is { } id ? hub.Clients.Client(id).SendAsync("VoiceStates", states) : Task.CompletedTask;
 
-    public Task Tell(string xuid, string message) =>
-        connectionId is { } id ? hub.Clients.Client(id).SendAsync("Tell", xuid, message) : Task.CompletedTask;
+    string? Connection(string? server) => servers.FirstOrDefault(s => s.Value == server).Key;
 }

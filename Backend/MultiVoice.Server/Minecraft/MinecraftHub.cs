@@ -9,31 +9,33 @@ public class MinecraftHub(PluginSecret secret, MinecraftLink link, PlayerRegistr
 {
     public override Task OnConnectedAsync()
     {
-        if (!secret.Matches(Context.GetHttpContext()?.Request.Headers["X-Secret"]))
+        var headers = Context.GetHttpContext()?.Request.Headers;
+        if (!secret.Matches(headers?["X-Secret"]))
         {
             Context.Abort();
             return Task.CompletedTask;
         }
-        players.Clear();
-        link.Attach(Context.ConnectionId);
+        // the plugin makes a new id on every start; an old plugin sends none and is the server null
+        var server = headers?["X-Server"].FirstOrDefault();
+        players.Clear(server);
+        link.Attach(Context.ConnectionId, server);
         return states.Refresh(states.Known());
     }
 
     public async Task Players(PlayerPosition[] changed, string[] left)
     {
-        if (!link.Is(Context.ConnectionId)) return;
-        players.Update(changed, left);
-        foreach (var xuid in left) await rooms.Leave(xuid);
+        if (!link.TryServer(Context.ConnectionId, out var server)) return;
+        foreach (var xuid in players.Update(server, changed, left)) await rooms.Leave(xuid);
         await voice.PushListeners(changed);
         await states.Refresh(changed.Select(p => p.Xuid).Concat(left));
     }
 
     public Task Confirm(string xuid, int code) =>
-        link.Is(Context.ConnectionId) ? login.Confirm(xuid, code) : Task.CompletedTask;
+        OnThisServer(xuid) ? login.Confirm(xuid, code) : Task.CompletedTask;
 
     public async Task Room(string xuid, string action, string? code)
     {
-        if (!link.Is(Context.ConnectionId)) return;
+        if (!OnThisServer(xuid)) return;
         var reply = action switch
         {
             "create" => $"Комната создана, код: {await rooms.Create(xuid)}",
@@ -41,39 +43,45 @@ public class MinecraftHub(PluginSecret secret, MinecraftLink link, PlayerRegistr
             "leave" => await rooms.Leave(xuid) ? "Вы вышли из комнаты" : "Вы не в комнате",
             _ => "Использование: /room create | join <код> | leave",
         };
-        await link.Tell(xuid, reply);
+        await Clients.Caller.SendAsync("Tell", xuid, reply);
     }
 
     public async Task Ban(string adminXuid, string target, int? minutes)
     {
-        if (!link.Is(Context.ConnectionId)) return;
+        if (!OnThisServer(adminXuid)) return;
         var reply = !moderation.IsAdmin(adminXuid) ? "Нужны права опа"
-            : players.XuidOf(target) is not { } xuid ? $"{target} не в игре"
+            : XuidOnThisServer(target) is not { } xuid ? $"{target} не в игре"
             : minutes is <= 0 ? "Неверный срок"
             : null;
         if (reply is null)
         {
-            await moderation.Ban(players.XuidOf(target)!, minutes);
+            await moderation.Ban(XuidOnThisServer(target)!, minutes);
             reply = minutes is { } m ? $"{target} не может говорить {m} мин" : $"{target} не может говорить, пока запрет не снимут";
         }
-        await link.Tell(adminXuid, reply);
+        await Clients.Caller.SendAsync("Tell", adminXuid, reply);
     }
 
     public async Task Unban(string adminXuid, string target)
     {
-        if (!link.Is(Context.ConnectionId)) return;
+        if (!OnThisServer(adminXuid)) return;
         var reply = !moderation.IsAdmin(adminXuid) ? "Нужны права опа"
-            : players.XuidOf(target) is not { } xuid ? $"{target} не в игре"
+            : XuidOnThisServer(target) is not { } xuid ? $"{target} не в игре"
             : await moderation.Unban(xuid) ? $"{target} снова может говорить"
             : $"У {target} нет запрета";
-        await link.Tell(adminXuid, reply);
+        await Clients.Caller.SendAsync("Tell", adminXuid, reply);
     }
+
+    // a plugin acts only for players on its own server; a replaced connection for nobody
+    bool OnThisServer(string xuid) =>
+        link.TryServer(Context.ConnectionId, out var server) && players.Get(xuid) is { } p && p.Server == server;
+
+    string? XuidOnThisServer(string name) => players.XuidOf(name) is { } xuid && OnThisServer(xuid) ? xuid : null;
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        if (link.Detach(Context.ConnectionId))
+        if (link.Detach(Context.ConnectionId, out var server))
         {
-            players.Clear();
+            players.Clear(server);
             await states.Refresh(states.Known());
         }
         await base.OnDisconnectedAsync(exception);

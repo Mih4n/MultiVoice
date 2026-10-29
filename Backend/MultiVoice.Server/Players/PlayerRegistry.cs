@@ -23,15 +23,21 @@ public sealed class PlayerRegistry
 
     public string? XuidOf(string name) => xuidsByName.GetValueOrDefault(name);
 
-    public void Update(IEnumerable<PlayerPosition> changed, IEnumerable<string> left)
+    // returns the xuids that actually left: a player who moved to another server stays there
+    public string[] Update(string? server, IEnumerable<PlayerPosition> changed, IEnumerable<string> left)
     {
         lock (writeLock)
         {
+            var removed = new List<string>();
             foreach (var xuid in left)
-                if (players.TryRemove(xuid, out var gone))
+                if (players.TryGetValue(xuid, out var gone) && gone.Server == server && players.TryRemove(xuid, out _))
+                {
                     xuidsByName.TryRemove(new KeyValuePair<string, string>(gone.Name, xuid));
+                    removed.Add(xuid);
+                }
 
-            foreach (var player in changed)
+            // a player shown by another server too is moved to this one
+            foreach (var player in changed.Select(p => p with { Server = server }))
             {
                 if (players.TryGetValue(player.Xuid, out var old) && old.Name != player.Name)
                     xuidsByName.TryRemove(new KeyValuePair<string, string>(old.Name, player.Xuid));
@@ -40,8 +46,9 @@ public sealed class PlayerRegistry
             }
 
             World = new World(players.Values, chunkSize);
+            return [.. removed];
         }
     }
 
-    public void Clear() => Update([], players.Keys);
+    public void Clear(string? server) => Update(server, [], [.. players.Values.Where(p => p.Server == server).Select(p => p.Xuid)]);
 }

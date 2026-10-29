@@ -1,5 +1,6 @@
 import threading
 import time
+import uuid
 
 from signalrcore.hub_connection_builder import HubConnectionBuilder
 
@@ -10,6 +11,7 @@ class Hub:
     def __init__(self, url: str, secret: str, logger, handlers: dict, on_open) -> None:
         self.url = url
         self.secret = secret
+        self.server_id = str(uuid.uuid4())  # new on every start: the backend tells servers apart by it
         self.logger = logger
         self.handlers = handlers
         self.on_open = on_open
@@ -47,7 +49,7 @@ class Hub:
                 if self.connection is not None:
                     self.connection.stop()
                 self.connection = HubConnectionBuilder() \
-                    .with_url(self.url, options={"headers": {"X-Secret": self.secret}}) \
+                    .with_url(self.url, options={"headers": {"X-Secret": self.secret, "X-Server": self.server_id}}) \
                     .build()
                 self.connection.on_open(self.opened)
                 self.connection.on_close(self.closed)
